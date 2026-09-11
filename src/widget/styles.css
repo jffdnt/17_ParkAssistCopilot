@@ -1,0 +1,112 @@
+:root {
+  color-scheme: light dark;
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  --garage-success: #107c10;
+  --garage-cyan: #0078d4;
+  --garage-warning: #f7630c;
+  --garage-danger: #c50f1f;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { min-height: 100%; margin: 0; }
+body { background: var(--colorNeutralBackground1); }
+.provider { min-height: 100%; background: transparent; }
+.app-shell { width: 100%; padding: 16px; color: var(--colorNeutralForeground1); }
+
+.masthead,
+.brand-lockup,
+.header-actions,
+.summary-panel,
+.summary-copy,
+.eyebrow,
+.updated,
+.overview-strip,
+.space-meta,
+.plate-card,
+.camera-title-row,
+.camera-status-row,
+.badge-row {
+  display: flex;
+  align-items: center;
+}
+
+.masthead { justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.brand-lockup { gap: 12px; min-width: 0; }
+.brand-lockup h1 { margin: 0; line-height: 1.2; }
+.brand-mark { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 auto; border-radius: 12px; color: white; background: linear-gradient(145deg, #0078d4, #00a4ef); box-shadow: 0 8px 24px color-mix(in srgb, #0078d4 35%, transparent); }
+.brand-mark svg { width: 24px; height: 24px; }
+.eyebrow { gap: 4px; margin-top: 2px; color: var(--colorNeutralForeground3); font-size: 12px; }
+.header-actions { gap: 4px; }
+
+.summary-panel { justify-content: space-between; gap: 20px; padding: 16px; border: 1px solid var(--colorNeutralStroke2); border-radius: 16px; background: radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--colorBrandBackground) 12%, transparent), transparent 42%), var(--colorNeutralBackground2); }
+.summary-copy { align-items: flex-start; flex-direction: column; gap: 6px; }
+.updated { gap: 4px; color: var(--colorNeutralForeground3); }
+.occupancy-gauge { width: 128px; flex: 0 0 128px; text-align: right; }
+.gauge-value { font-size: 24px; font-weight: 700; line-height: 1; }
+.gauge-label { margin: 2px 0 6px; color: var(--colorNeutralForeground3); font-size: 12px; }
+
+.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 12px 0; }
+.metric { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px; border: 1px solid var(--colorNeutralStroke2); border-radius: 12px; background: var(--colorNeutralBackground1); }
+.metric-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border-radius: 10px; background: var(--colorNeutralBackground3); }
+.metric-value { font-size: 20px; font-weight: 700; line-height: 1; }
+.metric-label { margin-top: 3px; color: var(--colorNeutralForeground3); font-size: 11px; white-space: nowrap; }
+.metric-success .metric-icon { color: var(--colorPaletteGreenForeground1, var(--garage-success)); }
+.metric-brand .metric-icon { color: var(--colorBrandForeground1, var(--garage-cyan)); }
+.metric-warning .metric-icon { color: var(--colorPaletteMarigoldForeground2, var(--garage-warning)); }
+.metric-danger .metric-icon { color: var(--colorPaletteRedForeground1, var(--garage-danger)); }
+
+.overview-strip { justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: 12px; background: var(--colorNeutralBackground2); color: var(--colorNeutralForeground2); font-size: 13px; }
+.pulse-dot, .status-dot { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--garage-success); }
+.pulse-dot { box-shadow: 0 0 0 5px color-mix(in srgb, var(--garage-success) 14%, transparent); }
+
+.space-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.space-card { border: 1px solid var(--colorNeutralStroke2); box-shadow: none; }
+.space-number { display: grid; place-items: center; min-width: 46px; height: 40px; padding: 0 8px; border: 2px solid var(--garage-success); border-radius: 8px; color: var(--garage-success); font-weight: 800; }
+.space-meta { gap: 4px; color: var(--colorNeutralForeground3); font-size: 12px; }
+
+.plate-list { display: grid; gap: 8px; }
+.plate-card { gap: 12px; flex-direction: row; border: 1px solid var(--colorNeutralStroke2); }
+.plate-icon { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 auto; border-radius: 12px; color: var(--colorBrandForeground1); background: var(--colorNeutralBackground3); }
+.plate-main { min-width: 0; flex: 1; }
+.plate-number { display: inline-block; padding: 3px 10px; border: 2px solid var(--colorNeutralForeground1); border-radius: 6px; background: var(--colorNeutralBackground1); font-family: ui-monospace, "Cascadia Mono", monospace; font-weight: 800; letter-spacing: 2px; }
+
+.camera-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.camera-card { min-width: 0; padding: 0; overflow: hidden; border: 1px solid var(--colorNeutralStroke2); box-shadow: 0 8px 28px color-mix(in srgb, #000 10%, transparent); }
+.camera-preview { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: #161616; }
+.camera-preview img { width: 100%; height: 100%; object-fit: cover; filter: saturate(.82) contrast(1.04); }
+.camera-preview::after { position: absolute; inset: 0; content: ""; pointer-events: none; background: linear-gradient(to top, rgba(0,0,0,.46), transparent 48%); }
+.camera-age { position: absolute; z-index: 1; right: 8px; bottom: 8px; display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 999px; color: white; background: rgba(20,20,20,.8); font-size: 11px; font-weight: 700; backdrop-filter: blur(8px); }
+.camera-age svg { color: #ffb900; }
+.camera-fallback { display: grid; place-items: center; align-content: center; width: 100%; height: 100%; gap: 8px; color: #d1d1d1; background: radial-gradient(circle, #333, #171717); }
+.camera-fallback svg { width: 36px; height: 36px; }
+.camera-content { display: grid; gap: 10px; padding: 12px; }
+.camera-title-row { align-items: flex-start; justify-content: space-between; gap: 8px; }
+.camera-title-row h2 { margin: 0; }
+.badge-row { flex-wrap: wrap; gap: 6px; }
+.camera-status-row { justify-content: space-between; gap: 8px; color: var(--colorNeutralForeground3); font-size: 11px; }
+.status-dot.occupied { background: var(--garage-cyan); }
+.status-dot.vacant { background: var(--garage-success); }
+
+.more-hint { margin-top: 12px; padding: 10px 12px; border-radius: 10px; color: var(--colorNeutralForeground3); background: var(--colorNeutralBackground2); font-size: 12px; text-align: center; }
+.center-state, .empty-state { display: grid; place-items: center; align-content: center; gap: 12px; min-height: 220px; padding: 24px; text-align: center; }
+.center-state > svg, .empty-state svg { width: 40px; height: 40px; color: var(--colorBrandForeground1); }
+.error-state > svg { color: var(--colorPaletteRedForeground1, var(--garage-danger)); }
+.loading-orbit { display: grid; place-items: center; width: 74px; height: 74px; border-radius: 50%; background: color-mix(in srgb, var(--colorBrandBackground) 10%, transparent); }
+.empty-state { grid-column: 1 / -1; min-height: 150px; color: var(--colorNeutralForeground3); border: 1px dashed var(--colorNeutralStroke1); border-radius: 12px; }
+
+@media (max-width: 620px) {
+  .app-shell { padding: 12px; }
+  .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .summary-panel { align-items: flex-start; flex-direction: column; }
+  .occupancy-gauge { width: 100%; text-align: left; }
+  .camera-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .result-enter { animation: enter .28s ease-out both; }
+  .pulse-dot { animation: pulse 1.8s ease-out infinite; }
+  .camera-card, .space-card { transition: transform .18s ease, box-shadow .18s ease; }
+  .camera-card:hover, .space-card:hover { transform: translateY(-2px); box-shadow: 0 10px 30px color-mix(in srgb, #000 13%, transparent); }
+  @keyframes enter { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 9px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+}

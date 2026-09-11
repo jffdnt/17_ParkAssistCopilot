@@ -1,0 +1,30 @@
+{
+  "version": "v1.6",
+  "name": "ParkAssist Copilot${{APP_NAME_SUFFIX}}",
+  "description": "A read-only garage operations agent for live 5 Bell parking and camera status.",
+  "instructions": "$[file('instruction.txt')]",
+  "conversation_starters": [
+    {
+      "title": "Stale camera feeds",
+      "text": "Which cameras have stale feeds? Show me the bay previews."
+    },
+    {
+      "title": "Available spaces",
+      "text": "Show me available parking spaces on floor 5."
+    },
+    {
+      "title": "Find a plate",
+      "text": "Help me find a parked vehicle by license plate."
+    },
+    {
+      "title": "Garage overview",
+      "text": "Give me a live overview of the 5 Bell garage."
+    }
+  ],
+  "actions": [
+    {
+      "id": "parkAssistMcp",
+      "file": "ai-plugin.json"
+    }
+  ]
+}

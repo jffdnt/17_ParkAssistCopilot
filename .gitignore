@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+appPackage/build/
+.env
+.env.local
+.DS_Store
+*.log
+.vite/
+.agents/
+.claude/
+.codex/
