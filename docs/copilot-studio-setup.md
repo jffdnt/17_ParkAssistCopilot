@@ -30,7 +30,7 @@ For an initial Copilot Studio-only pilot, `AUTH_MODE=api-key` can be used with a
 
 The current recommended path is the MCP onboarding wizard:
 
-1. Open the target Copilot Studio environment and create or open **ParkAssist Copilot**.
+1. Open **ParkAssist Copilot** (`fivebell_ParkAssistCopilot`) in the target Copilot Studio environment. The initial agent already exists in the development tenant.
 2. Enable generative orchestration.
 3. Go to **Tools** → **Add a tool** → **New tool** → **Model Context Protocol**.
 4. Enter:

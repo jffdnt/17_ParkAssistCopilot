@@ -130,6 +130,7 @@ See [security.md](docs/security.md) before enabling production access.
 
 ```text
 appPackage/              Microsoft 365 declarative-agent package template
+copilotStudio/           Source-controlled Copilot Studio agent workspace
 connector/               Power Apps custom MCP connector fallback
 docs/                    architecture, security, and setup guidance
 scripts/                 smoke test, icon generator, package builder

@@ -1,0 +1,28 @@
+mcs.metadata:
+  componentName: Greeting
+  description: This topic is triggered when the user greets the agent.
+kind: AdaptiveDialog
+beginDialog:
+  kind: OnRecognizedIntent
+  id: main
+  intent:
+    displayName: Greeting
+    includeInOnSelectIntent: false
+    triggerQueries:
+      - Good afternoon
+      - Good morning
+      - Hello
+      - Hey
+      - Hi
+
+  actions:
+    - kind: SendActivity
+      id: sendMessage_abmysR
+      activity:
+        text:
+          - Hi, I’m ParkAssist Copilot. Ask me about available spaces, an authorized license-plate lookup, or which 5 Bell camera feeds are stale.
+        speak:
+          - Hi, I’m ParkAssist Copilot. Ask me about available spaces, a license plate, or stale camera feeds.
+
+    - kind: CancelAllDialogs
+      id: cancelAllDialogs_01At22
