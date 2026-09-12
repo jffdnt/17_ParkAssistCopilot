@@ -1,22 +1,25 @@
 import type { ICopilotComponentHostContext, SPCopilotDisplayMode } from '@microsoft/sp-copilot-component';
 import type { IGarageResult } from '../../../services/ParkAssistService';
 
-export interface IStaleCameraFeedsStrings {
+export interface IGarageOverviewStrings {
   ExpandButtonLabel: string;
   CompactButtonLabel: string;
   GeneratedPrefix: string;
-  NoTelemetryLabel: string;
-  EmptyStateLabel: string;
-  ErrorStatePrefix: string;
   LoadingLabel: string;
+  ErrorStatePrefix: string;
+  TotalSpacesLabel: string;
+  AvailableLabel: string;
+  OccupiedLabel: string;
+  OutOfServiceLabel: string;
+  StaleFeedsLabel: string;
+  OccupancyLabel: string;
 }
 
-export interface IStaleCameraFeedsProps {
+export interface IGarageOverviewProps {
   result: IGarageResult | undefined;
   errorMessage: string | undefined;
-  floor: number | undefined;
   hostContext: ICopilotComponentHostContext;
   targetDocument: Document | undefined;
   onRequestDisplayMode: (mode: SPCopilotDisplayMode) => Promise<void>;
-  strings: IStaleCameraFeedsStrings;
+  strings: IGarageOverviewStrings;
 }

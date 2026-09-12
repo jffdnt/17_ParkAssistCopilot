@@ -3,7 +3,7 @@
   "solution": {
     "name": "ParkAssist Garage Copilot Component",
     "id": "26d40212-4f04-4670-97c4-e70d19457b7c",
-    "version": "1.0.0.0",
+    "version": "1.1.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "developer": {
@@ -15,7 +15,7 @@
     },
     "metadata": {
       "shortDescription": {
-        "default": "Live camera-health review for the 5 Bell parking garage."
+        "default": "Live status, availability, plate lookup, and camera health for the 5 Bell parking garage."
       },
       "longDescription": {
         "default": "Renders stale and missing camera feeds for the 5 Bell parking garage inside Microsoft 365 Copilot, reading live data from the ParkAssist service as the signed-in user."
@@ -29,7 +29,7 @@
         "title": "ParkAssist Garage Copilot Component Feature",
         "description": "Registers the ParkAssist camera-health Copilot Component and its declarative agent.",
         "id": "d5cf66a6-378f-49fc-a922-e41e25985a33",
-        "version": "1.0.0.0"
+        "version": "1.1.0.0"
       }
     ],
     "webApiPermissionRequests": [

@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-component-manifest.schema.json",
-  "id": "ba8f08b7-95eb-4ae8-8aa1-387535207f7c",
-  "alias": "StaleCameraFeedsCopilotComponent",
+  "id": "11022d93-1e82-40e9-94be-98fef1a5945d",
+  "alias": "GarageOverviewCopilotComponent",
   "componentType": "CopilotComponent",
   "copilotType": "Ux",
   "version": "*",
@@ -13,12 +13,12 @@
 
   "tools": [
     {
-      "name": "StaleCameraFeedsTool",
+      "name": "GarageOverviewTool",
       "description": {
-        "default": "Find 5 Bell garage bays whose camera snapshot is stale or missing telemetry, with inline previews."
+        "default": "Show a live summary of 5 Bell garage status: occupancy, available spaces, out-of-service bays, and stale camera feeds."
       },
       "propertiesSchema": {
-        "id": "$../../../lib/copilotComponents/staleCameraFeeds/StaleCameraFeedsCopilotComponentProperties.js:default;"
+        "id": "$../../../lib/copilotComponents/garageOverview/GarageOverviewCopilotComponentProperties.js:default;"
       }
     }
   ]

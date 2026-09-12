@@ -9,10 +9,37 @@
           "manifest": "./src/copilotComponents/staleCameraFeeds/StaleCameraFeedsCopilotComponent.manifest.json"
         }
       ]
+    },
+    "garage-overview-copilot-component": {
+      "components": [
+        {
+          "entrypoint": "./lib/copilotComponents/garageOverview/GarageOverviewCopilotComponent.js",
+          "manifest": "./src/copilotComponents/garageOverview/GarageOverviewCopilotComponent.manifest.json"
+        }
+      ]
+    },
+    "available-spaces-copilot-component": {
+      "components": [
+        {
+          "entrypoint": "./lib/copilotComponents/availableSpaces/AvailableSpacesCopilotComponent.js",
+          "manifest": "./src/copilotComponents/availableSpaces/AvailableSpacesCopilotComponent.manifest.json"
+        }
+      ]
+    },
+    "plate-search-copilot-component": {
+      "components": [
+        {
+          "entrypoint": "./lib/copilotComponents/plateSearch/PlateSearchCopilotComponent.js",
+          "manifest": "./src/copilotComponents/plateSearch/PlateSearchCopilotComponent.manifest.json"
+        }
+      ]
     }
   },
   "externals": {},
   "localizedResources": {
-    "StaleCameraFeedsCopilotComponentStrings": "lib/copilotComponents/staleCameraFeeds/loc/{locale}.js"
+    "StaleCameraFeedsCopilotComponentStrings": "lib/copilotComponents/staleCameraFeeds/loc/{locale}.js",
+    "GarageOverviewCopilotComponentStrings": "lib/copilotComponents/garageOverview/loc/{locale}.js",
+    "AvailableSpacesCopilotComponentStrings": "lib/copilotComponents/availableSpaces/loc/{locale}.js",
+    "PlateSearchCopilotComponentStrings": "lib/copilotComponents/plateSearch/loc/{locale}.js"
   }
 }

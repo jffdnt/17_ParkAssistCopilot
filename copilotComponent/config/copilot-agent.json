@@ -6,10 +6,13 @@
         "default": "ParkAssist Garage"
       },
       "description": {
-        "default": "Live camera-health review for the 5 Bell parking garage."
+        "default": "Live occupancy, availability, plate lookup, and camera health for the 5 Bell parking garage."
       },
       "components": [
-        "ba8f08b7-95eb-4ae8-8aa1-387535207f7c"
+        "ba8f08b7-95eb-4ae8-8aa1-387535207f7c",
+        "11022d93-1e82-40e9-94be-98fef1a5945d",
+        "208240ac-822b-47d9-ba7e-912a54e4b6fe",
+        "025d53a6-a32c-469e-8413-929fd33d3f75"
       ]
     }
   ]

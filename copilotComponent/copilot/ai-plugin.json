@@ -3,7 +3,7 @@
   "schema_version": "v2.4",
   "namespace": "parkAssistGarage",
   "name_for_human": "ParkAssist Garage",
-  "description_for_human": "Live camera-health review for the 5 Bell parking garage.",
-  "description_for_model": "Reviews live camera health for the 5 Bell parking garage, listing bays whose camera snapshot is older than a staleness threshold or missing telemetry entirely, with inline previews.",
+  "description_for_human": "Live occupancy, availability, plate lookup, and camera health for the 5 Bell parking garage.",
+  "description_for_model": "Read-only live data for the 5 Bell parking garage: occupancy and availability summary, vacant in-service spaces by floor or designation, license-plate lookup, and stale or missing camera feeds with inline previews.",
   "contact_email": "jffdnt@gmail.com"
 }

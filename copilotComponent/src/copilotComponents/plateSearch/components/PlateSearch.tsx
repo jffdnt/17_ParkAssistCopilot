@@ -3,16 +3,15 @@ import { Body1 } from '@fluentui/react-components';
 
 import GarageShell from '../../../components/GarageShell';
 import BayGrid from '../../../components/BayGrid';
-import type { IStaleCameraFeedsProps } from './IStaleCameraFeedsProps';
+import type { IPlateSearchProps } from './IPlateSearchProps';
 
-/** Camera-health view for the 5 Bell garage. */
-export default function StaleCameraFeeds(props: IStaleCameraFeedsProps): JSX.Element {
-  const { result, floor, strings } = props;
+/** Plate-match results for the 5 Bell garage. */
+export default function PlateSearch(props: IPlateSearchProps): JSX.Element {
+  const { result, query, strings } = props;
 
-  const floorLabel = floor === undefined ? 'all floors' : `floor ${floor}`;
   const subtitle = result
-    ? `${result.totalMatches} stale or missing across ${floorLabel} · threshold ${result.staleAfterMinutes} min · ` +
-      `${strings.GeneratedPrefix} ${new Date(result.generatedAt).toLocaleTimeString()}`
+    ? `${result.totalMatches} ${strings.MatchCountSuffix} · ${strings.GeneratedPrefix} ` +
+      `${new Date(result.generatedAt).toLocaleTimeString()}`
     : undefined;
 
   let body: JSX.Element;
@@ -20,18 +19,18 @@ export default function StaleCameraFeeds(props: IStaleCameraFeedsProps): JSX.Ele
   if (!result) {
     body = <Body1>{strings.LoadingLabel}</Body1>;
   } else if (result.bays.length === 0) {
-    body = <Body1>{strings.EmptyStateLabel}</Body1>;
+    body = <Body1>{strings.NoMatchLabel}</Body1>;
   } else {
-    body = <BayGrid bays={result.bays} noTelemetryLabel={strings.NoTelemetryLabel} />;
+    body = <BayGrid bays={result.bays} noTelemetryLabel={strings.NoTelemetryLabel} showPlates={true} />;
   }
 
   return (
     <GarageShell
-      title="Stale camera feeds"
+      title={`Plate search: ${query}`}
       subtitle={subtitle}
       hostContext={props.hostContext}
       targetDocument={props.targetDocument}
-      idPrefix="parkassist-stale-feeds-"
+      idPrefix="parkassist-plate-"
       onRequestDisplayMode={props.onRequestDisplayMode}
       expandLabel={strings.ExpandButtonLabel}
       compactLabel={strings.CompactButtonLabel}

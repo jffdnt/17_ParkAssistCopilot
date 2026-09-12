@@ -105,31 +105,67 @@ async function main(): Promise<void> {
     }
   };
 
-  app.options("/api/stale-feeds", (request: Request, response: Response) => {
-    applyCors(request, response);
-    response.status(204).end();
-  });
+  const optionalInteger = (value: unknown): number | undefined => {
+    const parsed = Number.parseInt(String(value ?? ""), 10);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
 
-  app.get("/api/stale-feeds", (request: Request, response: Response, next) => {
-    applyCors(request, response);
-    requireMcpAuthorization(request, response, next);
-  }, async (request: Request, response: Response) => {
-    const floorValue = Number.parseInt(String(request.query.floor ?? ""), 10);
-    const thresholdValue = Number.parseInt(String(request.query.thresholdMinutes ?? ""), 10);
-    const limitValue = Number.parseInt(String(request.query.limit ?? ""), 10);
+  /**
+   * Registers a read-only JSON endpoint for the Copilot Components, behind the
+   * same Entra check as /mcp. `label` only appears in server-side error logs.
+   */
+  const registerComponentRoute = (
+    path: string,
+    label: string,
+    handler: (request: Request) => Promise<unknown>,
+  ): void => {
+    app.options(path, (request: Request, response: Response) => {
+      applyCors(request, response);
+      response.status(204).end();
+    });
 
-    try {
-      const result = await parking.getStaleCameraFeeds({
-        floor: Number.isFinite(floorValue) ? floorValue : undefined,
-        thresholdMinutes: Number.isFinite(thresholdValue) ? thresholdValue : undefined,
-        limit: Number.isFinite(limitValue) ? limitValue : 12,
-        page: 1,
-      });
-      response.json(result);
-    } catch (error) {
-      console.error("Stale feed lookup failed.", error);
-      response.status(502).json({ error: "The garage service is temporarily unavailable." });
+    app.get(path, (request: Request, response: Response, next) => {
+      applyCors(request, response);
+      requireMcpAuthorization(request, response, next);
+    }, async (request: Request, response: Response) => {
+      try {
+        response.json(await handler(request));
+      } catch (error) {
+        console.error(`${label} lookup failed.`, error);
+        response.status(502).json({ error: "The garage service is temporarily unavailable." });
+      }
+    });
+  };
+
+  registerComponentRoute("/api/stale-feeds", "Stale feed", (request) =>
+    parking.getStaleCameraFeeds({
+      floor: optionalInteger(request.query.floor),
+      thresholdMinutes: optionalInteger(request.query.thresholdMinutes),
+      limit: optionalInteger(request.query.limit) ?? 12,
+      page: 1,
+    }),
+  );
+
+  registerComponentRoute("/api/overview", "Garage overview", () => parking.getOverview());
+
+  registerComponentRoute("/api/available-spaces", "Available space", (request) =>
+    parking.findAvailableSpaces({
+      floor: optionalInteger(request.query.floor),
+      designation: typeof request.query.designation === "string" ? request.query.designation : undefined,
+      limit: optionalInteger(request.query.limit) ?? 12,
+      page: 1,
+    }),
+  );
+
+  registerComponentRoute("/api/plate-search", "Plate search", async (request) => {
+    const query = typeof request.query.query === "string" ? request.query.query.trim() : "";
+    if (query.length < 3) {
+      throw new Error("Enter at least three letters or numbers from the license plate.");
     }
+    return parking.searchLicensePlate(query, {
+      limit: optionalInteger(request.query.limit) ?? 12,
+      page: 1,
+    });
   });
 
   app.all("/mcp", requireMcpAuthorization, (request: Request, response: Response) => {
