@@ -32,6 +32,13 @@ interface ListOptions {
   designation?: string;
   limit?: number;
   page?: number;
+  /**
+   * Attach a short-lived signed camera preview URL to each returned bay.
+   * Off by default so the MCP tools keep their existing payloads; the SPFx
+   * Copilot Components opt in, since a photo is how an operator confirms a
+   * space is really empty or that they have found the right vehicle.
+   */
+  includeImage?: boolean;
 }
 
 export class ParkingDataService {
@@ -76,7 +83,7 @@ export class ParkingDataService {
       `Available parking ${floorText}`,
       `${matches.length} ready-to-use spaces found ${floorText}.`,
       snapshot,
-      paged.items.map((bay) => this.toResult(bay)),
+      paged.items.map((bay) => this.toResult(bay, options.includeImage)),
       matches.length,
       {
         floor: options.floor,
@@ -87,7 +94,7 @@ export class ParkingDataService {
     return this.withCard(result);
   }
 
-  public async searchLicensePlate(query: string, options: Pick<ListOptions, "limit" | "page">): Promise<GarageToolResult> {
+  public async searchLicensePlate(query: string, options: Pick<ListOptions, "limit" | "page" | "includeImage">): Promise<GarageToolResult> {
     const normalizedQuery = normalizePlate(query);
     if (normalizedQuery.length < 3) {
       throw new Error("Enter at least three letters or numbers from the license plate.");
@@ -106,7 +113,7 @@ export class ParkingDataService {
         ? "No matching occupied spaces were found."
         : `${matches.length} matching vehicle${matches.length === 1 ? "" : "s"} found.`,
       snapshot,
-      paged.items.map((bay) => this.toResult(bay)),
+      paged.items.map((bay) => this.toResult(bay, options.includeImage)),
       matches.length,
       undefined,
       paged.hasMore,

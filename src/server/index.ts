@@ -154,6 +154,7 @@ async function main(): Promise<void> {
       designation: typeof request.query.designation === "string" ? request.query.designation : undefined,
       limit: optionalInteger(request.query.limit) ?? 12,
       page: 1,
+      includeImage: true,
     }),
   );
 
@@ -165,6 +166,7 @@ async function main(): Promise<void> {
     return parking.searchLicensePlate(query, {
       limit: optionalInteger(request.query.limit) ?? 12,
       page: 1,
+      includeImage: true,
     });
   });
 

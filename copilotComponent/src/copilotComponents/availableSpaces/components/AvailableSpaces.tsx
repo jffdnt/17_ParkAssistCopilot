@@ -30,12 +30,7 @@ export default function AvailableSpaces(props: IAvailableSpacesProps): JSX.Eleme
   } else {
     body = (
       <>
-        <BayGrid
-          bays={result.bays}
-          noTelemetryLabel={strings.NoTelemetryLabel}
-          showPreviews={false}
-          showFeedAge={false}
-        />
+        <BayGrid bays={result.bays} noTelemetryLabel={strings.NoTelemetryLabel} showFeedAge={false} />
         {result.hasMore ? (
           <Caption1>
             {result.totalMatches - result.bays.length} {strings.MoreResultsSuffix}
