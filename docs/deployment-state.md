@@ -198,6 +198,15 @@ Verified locally against live data before deploying (`AUTH_MODE=none` on port 30
 
 The operational finding worth keeping: **every one of the 47 stale feeds on floors 7-9 is on floor 7, and they are ~6.8 days old** (`thumbnailAgeMinutes` ≈ 9,806). Floors 8 and 9 are completely clean. That is precisely the answer the old card could not give.
 
+**Deployed 2026-09-12.** Server image `parkassist-mcp:20260912-154542` built via `az acr build --no-logs` (that flag avoids the Windows log-streaming `UnicodeEncodeError` noted below), rolled out as revision `parkassist-mcp--0000006`, confirmed by `az containerapp revision list` showing the new tag with 1 replica and the container logging "listening" at 16:11:12. Live `/api/stale-feeds?floors=7,8,9` returns 401 rather than 404, so the route exists and Entra is enforced; `/health` reports 946 configured spaces. SPFx `v1.5.0.0` uploaded and deployed to the tenant app catalog (`Deployed: True`, `IsEnabled: True`).
+
+Two things could not be verified from the CLI and are unchanged limitations, not new failures:
+
+- `m365 spo serviceprincipal permissionrequest list` / `grant list` still fail with "Attempted to perform an unauthorized operation" in this tenant (ADR-003 §2.4). The `webApiPermissionRequests` entry is unchanged (`ParkAssist Copilot` / `access_as_user`), so the existing approval should carry; if it did not, the component renders its "Could not load camera health: … 401" state rather than failing silently.
+- `m365 teams app list` needs an `AppCatalog.*` scope this CLI connection was not consented for, so the synced agent version cannot be read. **Add to all sites → Add to Teams** still has no CLI equivalent and must be repeated after every upload.
+
+A delegated token for an end-to-end live probe was not obtained: `az account get-access-token --resource api://750929bd-…` requires an interactive `az login --scope api://…/.default`, which would have to replace the existing az session. The server behaviour was instead verified locally against the same live upstream data (table above), and the live deployment verified by revision, replica, startup log, and auth response.
+
 ### Gotchas
 
 - **A stripped tool parameter fails silently, so prefer shapes known to survive.** The build logs which keywords it drops (`Stripped unsupported schema keyword(s) … [additionalProperties, $schema]`), but a dropped *parameter* produces no warning at all — the tool is simply called without it, and a missing filter reads as "no filter", which is a wrong answer rather than an error. This is why the SPFx `floors` parameter is a string the component parses rather than an integer array.
