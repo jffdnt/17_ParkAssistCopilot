@@ -146,10 +146,18 @@ A prerequisite finding: this model was previously blocked in this same tenant by
 4. In the app catalog UI: select the app → **Add to all sites** (enforced prerequisite) → **Add to Teams**. Still no CLI equivalent for the `SyncSolutionToTeams` step.
 5. In Microsoft 365 Copilot → More agents → Agent Store → "Built by your org" → **ParkAssist Garage** → Add.
 
-### Verified 2026-09-12
+### Verified 2026-09-12 — all four tools
 
-- Card renders inline and in fullscreen with live data: *"125 stale or missing across all floors · threshold 15 min"*, real bay IDs/floors/ages, and the HMAC-signed camera previews loading correctly.
-- Follow-up question returned model-visible data: *"Total stale or missing camera feeds: 123 … using a 15-minute staleness threshold"* plus a full Bay ID/Space table for floor 7. The 125→123 difference across the two snapshots is live data moving, which also confirms it is not cached.
+Each tool was exercised in Microsoft 365 Copilot with natural language (not just direct `Call <Tool>` invocations), confirming the orchestrator routes correctly, the card renders, and the follow-up model context lands.
+
+- **StaleCameraFeedsTool** — *"125 stale or missing across all floors · threshold 15 min"*, real bay IDs/floors/ages, HMAC-signed camera previews loading. Follow-up returned *"Total stale or missing camera feeds: 123"* plus a full Bay ID/Space table for floor 7. The 125→123 drift across snapshots confirms live, uncached data.
+- **GarageOverviewTool** — all nine metric tiles populated: 853 available, 42 occupied, 0 reserved, 52 out of service, 65 stale feeds, 9 missing feeds, 47 offline sensors, 946 configured, 4% occupancy. The 946 matches `/health`'s `configuredSpaces`. Follow-up correctly reported occupancy percent, configured spaces, offline sensors, and the live-reporting count (944 of 946).
+- **AvailableSpacesTool** — *"91 available across floor 5"* with the floor filter applied from natural language, designations shown, camera previews suppressed (they add nothing for a vacancy list), and a "79 more … narrow by floor or designation" hint.
+- **PlateSearchTool** — partial query `XDK` returned 2 matches: Space 5D (XDK9692, floor 5) and Space B11 (XDK9583, floor 8), full plates shown per the no-masking decision. A non-matching query renders a clean "No occupied spaces match that plate right now" state.
+
+**Bug found and fixed during verification**: the overview card initially showed em-dashes for Configured spaces and Occupancy because `IGarageMetrics` guessed at field names. The server's `GarageMetrics` contract uses `configured` and `occupancyPercent` (already a percentage, not a 0–1 rate), not `totalSpaces`/`occupancyRate`. Corrected, and the previously-dropped `reserved`, `missingFeeds`, `offlineSensors`, and `live` fields are now surfaced too.
+
+**Known cosmetic gap**: plate-search and availability results have no `imageUrl`, because the server only signs camera URLs for the stale-feed path (`includeImage`). Plate matches therefore render a "No telemetry" placeholder where a preview would help most when locating a vehicle. Passing `includeImage` through those endpoints would close this.
 
 ### Gotchas
 
