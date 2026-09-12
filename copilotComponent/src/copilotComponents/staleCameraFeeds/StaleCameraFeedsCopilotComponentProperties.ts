@@ -9,15 +9,17 @@ import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 
 const propertiesSchema = z.object({
-  floor: z
-    .number()
-    .int()
+  floors: z
+    .string()
     .optional()
-    .describe('Restrict results to a single garage floor, for example 5.'),
+    .describe(
+      'Which garage floors to check, as a comma-separated list or a range: "7" for one floor, ' +
+        '"7-9" for floors 7 through 9, "2,5,9" for specific floors. Always pass this when the ' +
+        'user names any floor, including a range. Omit it only for the whole garage.'
+    ),
   thresholdMinutes: z
     .number()
     .int()
-    .positive()
     .optional()
     .describe(
       'Treat a camera snapshot as stale once it is older than this many minutes. Defaults to the server-configured threshold (15).'

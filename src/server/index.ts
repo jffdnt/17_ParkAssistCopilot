@@ -111,6 +111,19 @@ async function main(): Promise<void> {
   };
 
   /**
+   * Parses `floors=7,8,9`. The Copilot-facing tool schema declares an array,
+   * but a query string carries it as text, so ranges arrive here flattened.
+   */
+  const integerList = (value: unknown): number[] | undefined => {
+    if (typeof value !== "string" || value.trim() === "") return undefined;
+    const floors = value
+      .split(",")
+      .map((part) => Number.parseInt(part.trim(), 10))
+      .filter((part) => Number.isFinite(part));
+    return floors.length > 0 ? floors : undefined;
+  };
+
+  /**
    * Registers a read-only JSON endpoint for the Copilot Components, behind the
    * same Entra check as /mcp. `label` only appears in server-side error logs.
    */
@@ -140,6 +153,7 @@ async function main(): Promise<void> {
   registerComponentRoute("/api/stale-feeds", "Stale feed", (request) =>
     parking.getStaleCameraFeeds({
       floor: optionalInteger(request.query.floor),
+      floors: integerList(request.query.floors),
       thresholdMinutes: optionalInteger(request.query.thresholdMinutes),
       limit: optionalInteger(request.query.limit) ?? 12,
       page: 1,
@@ -151,6 +165,7 @@ async function main(): Promise<void> {
   registerComponentRoute("/api/available-spaces", "Available space", (request) =>
     parking.findAvailableSpaces({
       floor: optionalInteger(request.query.floor),
+      floors: integerList(request.query.floors),
       designation: typeof request.query.designation === "string" ? request.query.designation : undefined,
       limit: optionalInteger(request.query.limit) ?? 12,
       page: 1,

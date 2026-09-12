@@ -48,6 +48,20 @@ export interface IGarageMetrics {
 }
 
 /**
+ * One floor's share of a filtered result. The server computes these over the
+ * whole match set before paging, so they are the only trustworthy per-floor
+ * counts available here — `bays` is a single page and counting it would
+ * understate every floor.
+ */
+export interface IFloorCount {
+  floor: number;
+  /** Bays on this floor that matched. */
+  count: number;
+  /** Bays on this floor in the bay map, as the denominator for `count`. */
+  configured: number;
+}
+
+/**
  * Shared response envelope. Every ParkAssist endpoint returns the same shape,
  * so one interface covers overview, availability, plate search, and stale feeds.
  */
@@ -62,6 +76,10 @@ export interface IGarageResult {
   totalMatches: number;
   hasMore: boolean;
   query?: string;
+  /** `totalMatches` split by floor, ascending. Absent on the overview. */
+  floorBreakdown?: IFloorCount[];
+  /** Bays in the bay map across the requested floors — the denominator for `totalMatches`. */
+  configuredInScope?: number;
 }
 
 export class ParkAssistService {
@@ -75,17 +93,21 @@ export class ParkAssistService {
     return this._get('/api/overview');
   }
 
-  public async getStaleFeeds(query: { floor?: number; thresholdMinutes?: number; limit?: number } = {}): Promise<IGarageResult> {
+  public async getStaleFeeds(
+    query: { floors?: number[]; thresholdMinutes?: number; limit?: number } = {}
+  ): Promise<IGarageResult> {
     return this._get('/api/stale-feeds', {
-      floor: query.floor,
+      floors: floorList(query.floors),
       thresholdMinutes: query.thresholdMinutes,
       limit: query.limit ?? 12
     });
   }
 
-  public async getAvailableSpaces(query: { floor?: number; designation?: string; limit?: number } = {}): Promise<IGarageResult> {
+  public async getAvailableSpaces(
+    query: { floors?: number[]; designation?: string; limit?: number } = {}
+  ): Promise<IGarageResult> {
     return this._get('/api/available-spaces', {
-      floor: query.floor,
+      floors: floorList(query.floors),
       designation: query.designation,
       limit: query.limit ?? 12
     });
@@ -129,7 +151,17 @@ export class ParkAssistService {
       bays: payload.bays ?? [],
       totalMatches: payload.totalMatches ?? 0,
       hasMore: payload.hasMore ?? false,
-      query: payload.query
+      query: payload.query,
+      floorBreakdown: payload.floorBreakdown,
+      configuredInScope: payload.configuredInScope
     };
   }
+}
+
+/**
+ * Flattens a floor set for the query string. Copilot hands the tool an array;
+ * the REST endpoint parses `floors=7,8,9` back into one.
+ */
+function floorList(floors: number[] | undefined): string | undefined {
+  return floors && floors.length > 0 ? floors.join(',') : undefined;
 }

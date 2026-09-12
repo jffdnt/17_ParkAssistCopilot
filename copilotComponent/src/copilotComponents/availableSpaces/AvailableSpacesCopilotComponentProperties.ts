@@ -6,11 +6,14 @@ import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 
 const propertiesSchema = z.object({
-  floor: z
-    .number()
-    .int()
+  floors: z
+    .string()
     .optional()
-    .describe('Restrict results to a single garage floor, for example 5.'),
+    .describe(
+      'Which garage floors to search, as a comma-separated list or a range: "5" for one floor, ' +
+        '"7-9" for floors 7 through 9, "2,5,9" for specific floors. Always pass this when the ' +
+        'user names any floor, including a range. Omit it to search the whole garage.'
+    ),
   designation: z
     .string()
     .optional()

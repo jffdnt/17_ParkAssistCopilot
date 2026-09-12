@@ -6,6 +6,7 @@ declare interface IAvailableSpacesCopilotComponentStrings {
   ErrorStatePrefix: string;
   EmptyStateLabel: string;
   NoTelemetryLabel: string;
+  CompleteListLabel: string;
   MoreResultsSuffix: string;
 }
 

@@ -9,13 +9,15 @@ export interface IAvailableSpacesStrings {
   ErrorStatePrefix: string;
   EmptyStateLabel: string;
   NoTelemetryLabel: string;
+  CompleteListLabel: string;
   MoreResultsSuffix: string;
 }
 
 export interface IAvailableSpacesProps {
   result: IGarageResult | undefined;
   errorMessage: string | undefined;
-  floor: number | undefined;
+  /** Floors the request was scoped to; undefined means the whole garage. */
+  floors: number[] | undefined;
   designation: string | undefined;
   hostContext: ICopilotComponentHostContext;
   targetDocument: Document | undefined;

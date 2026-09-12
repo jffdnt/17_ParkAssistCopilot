@@ -30,6 +30,20 @@ export interface GarageBayResult {
   health?: HealthAnnotation;
 }
 
+/**
+ * Per-floor tally for a filtered result, computed over the *whole* match set
+ * before paging. Clients only receive one page of bays, so they cannot derive
+ * these counts themselves — which is exactly why a caller asking "how many on
+ * floors 7-9?" needs the server to say so.
+ */
+export interface GarageFloorCount {
+  floor: number;
+  /** Bays on this floor that matched the filter. */
+  count: number;
+  /** Bays on this floor in the bay map, as the denominator for `count`. */
+  configured: number;
+}
+
 export interface GarageMetrics {
   configured: number;
   live: number;
@@ -55,8 +69,16 @@ export interface GarageToolResult {
   totalMatches: number;
   hasMore: boolean;
   query?: string;
+  /**
+   * `totalMatches` split by floor, ascending. Present on the filtered list
+   * views (availability, stale feeds); absent on the overview.
+   */
+  floorBreakdown?: GarageFloorCount[];
+  /** Bays in the bay map across the requested floors, the denominator for `totalMatches`. */
+  configuredInScope?: number;
   filters?: {
     floor?: number;
+    floors?: number[];
     designation?: string;
     includeOutOfService?: boolean;
   };

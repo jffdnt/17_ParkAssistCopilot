@@ -1,5 +1,6 @@
 import type {
   GarageBayResult,
+  GarageFloorCount,
   GarageMetrics,
   GarageToolResult,
 } from "../../shared/contracts.js";
@@ -27,8 +28,30 @@ interface Snapshot {
   metrics: GarageMetrics;
 }
 
+/**
+ * The optional tail of a `GarageToolResult`. An object rather than more
+ * positional parameters, which had already reached the point where call sites
+ * were passing `undefined` to skip over one.
+ */
+interface BaseResultExtras {
+  filters?: GarageToolResult["filters"];
+  hasMore?: boolean;
+  query?: string;
+  floorBreakdown?: GarageFloorCount[];
+  configuredInScope?: number;
+}
+
 interface ListOptions {
   floor?: number;
+  /**
+   * Restrict results to this set of floors. Supersedes `floor` when present,
+   * which `floor` remains only for the already-published MCP callers.
+   *
+   * A set rather than a min/max range because it covers both "floors 7 to 9"
+   * and "floors 2 and 9" with one parameter, and a caller that can only
+   * express a single floor cannot answer a question about three of them.
+   */
+  floors?: number[];
   designation?: string;
   limit?: number;
   page?: number;
@@ -68,8 +91,9 @@ export class ParkingDataService {
 
   public async findAvailableSpaces(options: ListOptions): Promise<GarageToolResult> {
     const snapshot = await this.getSnapshot(this.options.staleAfterMinutes);
+    const floors = resolveFloors(options);
     let matches = snapshot.bays.filter((bay) => bay.foundInLiveApi && !bay.occupied && !bay.outOfService && !bay.reserved);
-    if (options.floor != null) matches = matches.filter((bay) => bay.floor === options.floor);
+    if (floors) matches = matches.filter((bay) => floors.includes(bay.floor));
     if (options.designation) {
       const designation = options.designation.toLowerCase();
       matches = matches.filter((bay) => bay.designation.toLowerCase().includes(designation));
@@ -77,7 +101,7 @@ export class ParkingDataService {
     matches.sort((left, right) => left.floor - right.floor || left.spaceNumber.localeCompare(right.spaceNumber, undefined, { numeric: true }));
 
     const paged = this.page(matches, options.limit, options.page);
-    const floorText = options.floor == null ? "across all floors" : `on floor ${options.floor}`;
+    const floorText = describeFloors(floors);
     const result = this.baseResult(
       "availability",
       `Available parking ${floorText}`,
@@ -86,10 +110,11 @@ export class ParkingDataService {
       paged.items.map((bay) => this.toResult(bay, options.includeImage)),
       matches.length,
       {
-        floor: options.floor,
-        designation: options.designation,
+        filters: { floor: options.floor, floors, designation: options.designation },
+        hasMore: paged.hasMore,
+        floorBreakdown: floorBreakdown(matches, snapshot.bays, floors),
+        configuredInScope: countInScope(snapshot.bays, floors),
       },
-      paged.hasMore,
     );
     return this.withCard(result);
   }
@@ -115,9 +140,7 @@ export class ParkingDataService {
       snapshot,
       paged.items.map((bay) => this.toResult(bay, options.includeImage)),
       matches.length,
-      undefined,
-      paged.hasMore,
-      query.trim().toUpperCase(),
+      { hasMore: paged.hasMore, query: query.trim().toUpperCase() },
     );
     return this.withCard(result);
   }
@@ -128,10 +151,11 @@ export class ParkingDataService {
   }): Promise<GarageToolResult> {
     const thresholdMinutes = options.thresholdMinutes ?? this.options.staleAfterMinutes;
     const snapshot = await this.getSnapshot(thresholdMinutes);
+    const floors = resolveFloors(options);
     let matches = snapshot.bays.filter((bay) =>
       bay.foundInLiveApi && (bay.thumbnailTimestamp == null || (bay.thumbnailAgeMinutes ?? 0) > thresholdMinutes),
     );
-    if (options.floor != null) matches = matches.filter((bay) => bay.floor === options.floor);
+    if (floors) matches = matches.filter((bay) => floors.includes(bay.floor));
     if (options.includeOutOfService === false) matches = matches.filter((bay) => !bay.outOfService);
     matches.sort((left, right) => {
       if (left.thumbnailTimestamp == null && right.thumbnailTimestamp != null) return 1;
@@ -140,19 +164,26 @@ export class ParkingDataService {
     });
 
     const paged = this.page(matches, options.limit, options.page);
-    const floorText = options.floor == null ? "" : ` on floor ${options.floor}`;
+    const floorText = describeFloors(floors);
+    const configuredInScope = countInScope(snapshot.bays, floors);
     const result = this.baseResult(
       "stale-feeds",
-      `Stale camera feeds${floorText}`,
-      `${matches.length} camera feed${matches.length === 1 ? " is" : "s are"} older than ${thresholdMinutes} minutes or missing telemetry.`,
+      floors ? `Stale camera feeds ${floorText}` : "Stale camera feeds",
+      `${matches.length} of the ${configuredInScope} mapped space${configuredInScope === 1 ? "" : "s"} ${floorText} ` +
+        `${matches.length === 1 ? "has a camera feed" : "have camera feeds"} older than ${thresholdMinutes} minutes or missing telemetry.`,
       snapshot,
       paged.items.map((bay) => this.toResult(bay, true, thresholdMinutes)),
       matches.length,
       {
-        floor: options.floor,
-        includeOutOfService: options.includeOutOfService ?? true,
+        filters: {
+          floor: options.floor,
+          floors,
+          includeOutOfService: options.includeOutOfService ?? true,
+        },
+        hasMore: paged.hasMore,
+        floorBreakdown: floorBreakdown(matches, snapshot.bays, floors),
+        configuredInScope,
       },
-      paged.hasMore,
     );
     result.staleAfterMinutes = thresholdMinutes;
     return this.withCard(result);
@@ -286,9 +317,7 @@ export class ParkingDataService {
     snapshot: Snapshot,
     bays: GarageBayResult[],
     totalMatches: number,
-    filters?: GarageToolResult["filters"],
-    hasMore = false,
-    query?: string,
+    extras: BaseResultExtras = {},
   ): Omit<GarageToolResult, "adaptiveCard"> {
     return {
       view,
@@ -300,9 +329,11 @@ export class ParkingDataService {
       metrics: snapshot.metrics,
       bays,
       totalMatches,
-      hasMore,
-      query,
-      filters,
+      hasMore: extras.hasMore ?? false,
+      query: extras.query,
+      floorBreakdown: extras.floorBreakdown,
+      configuredInScope: extras.configuredInScope,
+      filters: extras.filters,
     };
   }
 
@@ -319,6 +350,57 @@ export class ParkingDataService {
       hasMore: start + safeLimit < items.length,
     };
   }
+}
+
+/**
+ * Floors a request is scoped to, or `undefined` for the whole garage. `floors`
+ * wins over the single-floor `floor`, which survives only for MCP callers
+ * already in the field.
+ */
+function resolveFloors(options: Pick<ListOptions, "floor" | "floors">): number[] | undefined {
+  if (options.floors && options.floors.length > 0) {
+    return [...new Set(options.floors)].sort((left, right) => left - right);
+  }
+  return options.floor == null ? undefined : [options.floor];
+}
+
+/**
+ * Human phrasing for a floor scope, collapsing a contiguous run into a range
+ * so "floors 7-9" reads back the way it was asked.
+ */
+function describeFloors(floors: number[] | undefined): string {
+  if (!floors || floors.length === 0) return "across all floors";
+  if (floors.length === 1) return `on floor ${floors[0]}`;
+  const contiguous = floors.every((floor, index) => index === 0 || floor === floors[index - 1]! + 1);
+  if (contiguous) return `on floors ${floors[0]}–${floors[floors.length - 1]}`;
+  return `on floors ${floors.slice(0, -1).join(", ")} and ${floors[floors.length - 1]}`;
+}
+
+/** Bays in the bay map across the requested floors — the denominator for a match count. */
+function countInScope(bays: MergedGarageBay[], floors: number[] | undefined): number {
+  return floors ? bays.filter((bay) => floors.includes(bay.floor)).length : bays.length;
+}
+
+/**
+ * Splits a match set by floor. Requested floors that matched nothing are kept
+ * with a count of zero: "floor 8: 0" answers the question, whereas a missing
+ * row leaves the caller unable to tell "none" from "not checked".
+ */
+function floorBreakdown(
+  matches: MergedGarageBay[],
+  allBays: MergedGarageBay[],
+  floors: number[] | undefined,
+): GarageFloorCount[] {
+  const counted = new Map<number, number>();
+  for (const floor of floors ?? []) counted.set(floor, 0);
+  for (const bay of matches) counted.set(bay.floor, (counted.get(bay.floor) ?? 0) + 1);
+
+  const configured = new Map<number, number>();
+  for (const bay of allBays) configured.set(bay.floor, (configured.get(bay.floor) ?? 0) + 1);
+
+  return [...counted.entries()]
+    .sort(([left], [right]) => left - right)
+    .map(([floor, count]) => ({ floor, count, configured: configured.get(floor) ?? 0 }));
 }
 
 function normalizeBayCollection(payload: unknown): ParkAssistBay[] {

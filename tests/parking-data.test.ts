@@ -83,4 +83,60 @@ describe("parking data tools", () => {
     expect(result.bays.map((bay) => bay.bayId).sort()).toEqual(["b2", "b3"]);
     expect(result.bays.every((bay) => bay.imageUrl?.startsWith("https://mcp.example/api/cameras/"))).toBe(true);
   });
+
+  it("scopes stale feeds to a set of floors and tallies each one", async () => {
+    const result = await service.getStaleCameraFeeds({ floors: [2, 3], thresholdMinutes: 15, limit: 12, page: 1 });
+
+    expect(result.totalMatches).toBe(2);
+    expect(result.bays.map((bay) => bay.bayId).sort()).toEqual(["b2", "b3"]);
+    expect(result.configuredInScope).toBe(3);
+    // Floor 3 matched nothing but was asked about, so it stays in the
+    // breakdown — "0" is an answer, an absent row is an ambiguity.
+    expect(result.floorBreakdown).toEqual([
+      { floor: 2, count: 2, configured: 2 },
+      { floor: 3, count: 0, configured: 1 },
+    ]);
+    expect(result.title).toBe("Stale camera feeds on floors 2–3");
+    expect(result.summary).toBe(
+      "2 of the 3 mapped spaces on floors 2–3 have camera feeds older than 15 minutes or missing telemetry.",
+    );
+  });
+
+  it("describes a non-contiguous floor set without implying a range", async () => {
+    const result = await service.getStaleCameraFeeds({ floors: [1, 3], thresholdMinutes: 15, limit: 12, page: 1 });
+
+    expect(result.totalMatches).toBe(0);
+    expect(result.title).toBe("Stale camera feeds on floors 1 and 3");
+    expect(result.floorBreakdown).toEqual([
+      { floor: 1, count: 0, configured: 1 },
+      { floor: 3, count: 0, configured: 1 },
+    ]);
+  });
+
+  it("prefers the floor set over the legacy single-floor filter", async () => {
+    const result = await service.getStaleCameraFeeds({ floor: 1, floors: [2], thresholdMinutes: 15, limit: 12, page: 1 });
+
+    expect(result.totalMatches).toBe(2);
+    expect(result.filters).toMatchObject({ floor: 1, floors: [2] });
+  });
+
+  it("deduplicates and sorts a floor set before reporting it", async () => {
+    const result = await service.getStaleCameraFeeds({ floors: [3, 2, 3], thresholdMinutes: 15, limit: 12, page: 1 });
+
+    expect(result.filters?.floors).toEqual([2, 3]);
+    expect(result.title).toBe("Stale camera feeds on floors 2–3");
+  });
+
+  it("scopes availability to a set of floors", async () => {
+    const scoped = await service.findAvailableSpaces({ floors: [2, 3], limit: 12, page: 1 });
+    expect(scoped.totalMatches).toBe(0);
+    expect(scoped.title).toBe("Available parking on floors 2–3");
+
+    const including = await service.findAvailableSpaces({ floors: [1, 2], limit: 12, page: 1 });
+    expect(including.totalMatches).toBe(1);
+    expect(including.floorBreakdown).toEqual([
+      { floor: 1, count: 1, configured: 1 },
+      { floor: 2, count: 0, configured: 2 },
+    ]);
+  });
 });

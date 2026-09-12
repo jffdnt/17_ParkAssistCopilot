@@ -7,6 +7,7 @@ define([], function() {
     "ErrorStatePrefix": "Could not load available spaces:",
     "EmptyStateLabel": "No available spaces match that filter right now.",
     "NoTelemetryLabel": "No telemetry",
-    "MoreResultsSuffix": "more available spaces not shown — narrow by floor or designation."
+    "CompleteListLabel": "Every match is shown below.",
+    "MoreResultsSuffix": "more are not shown — narrow by floor or designation to see the rest."
   }
 });

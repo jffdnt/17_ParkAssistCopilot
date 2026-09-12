@@ -6,6 +6,8 @@ declare interface IStaleCameraFeedsCopilotComponentStrings {
   EmptyStateLabel: string;
   ErrorStatePrefix: string;
   LoadingLabel: string;
+  CompleteListLabel: string;
+  MoreResultsSuffix: string;
 }
 
 declare module 'StaleCameraFeedsCopilotComponentStrings' {

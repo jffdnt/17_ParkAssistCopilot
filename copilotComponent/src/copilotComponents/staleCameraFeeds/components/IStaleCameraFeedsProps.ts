@@ -9,12 +9,15 @@ export interface IStaleCameraFeedsStrings {
   EmptyStateLabel: string;
   ErrorStatePrefix: string;
   LoadingLabel: string;
+  CompleteListLabel: string;
+  MoreResultsSuffix: string;
 }
 
 export interface IStaleCameraFeedsProps {
   result: IGarageResult | undefined;
   errorMessage: string | undefined;
-  floor: number | undefined;
+  /** Floors the request was scoped to; undefined means the whole garage. */
+  floors: number[] | undefined;
   hostContext: ICopilotComponentHostContext;
   targetDocument: Document | undefined;
   onRequestDisplayMode: (mode: SPCopilotDisplayMode) => Promise<void>;

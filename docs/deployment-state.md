@@ -161,8 +161,46 @@ Each tool was exercised in Microsoft 365 Copilot with natural language (not just
 
 One consequence worth knowing: the availability card originally hid the camera-age badge, which became misleading once photos appeared, because a snapshot can be stale while the sensor is current. The badge is back on for availability. Note also that these overhead cameras cover more than one bay, so a vehicle visible in frame is not necessarily in *that* bay — the age badge plus the bay label are what make a photo interpretable.
 
+### Floor-scoped, definitive answers (2026-09-12)
+
+Asking *"which cameras are stale on the 7-9 floors"* produced no usable answer, in either the card or the agent's prose. Three separate defects stacked up:
+
+1. **No way to express a floor range.** Both list tools took a single `floor` integer, so Copilot's only options were to call for one floor (silently dropping two) or omit the filter entirely (answering about the whole garage). Neither answers the question.
+2. **Per-floor counts were not derivable by any client.** A caller receives one page of bays — 12 of them — while `totalMatches` can be in the hundreds. Nothing in the payload split the total by floor, and counting the returned page understates every floor. Verified how badly: with no floor filter the 12-bay page for this garage contains *only floor 7* bays, because the sort is by staleness descending. A card built from that page would show floor 7 photos under the heading "98 across all floors" while the user asked about 7 through 9.
+3. **The stale-feeds card never said it was truncated.** The availability card had a "N more" hint; this one did not, so 12 of 125 looked like the complete set.
+
+Fixes, server side:
+
+- `ListOptions.floors?: number[]` on `findAvailableSpaces` and `getStaleCameraFeeds`, superseding `floor` (kept for callers already in the field). A set rather than a min/max range, so "floors 2 and 9" costs nothing extra.
+- `GarageToolResult.floorBreakdown` — `{ floor, count, configured }` per floor, computed over the **whole** match set before paging, so it is the only trustworthy per-floor source. Floors that were asked about but matched nothing stay in the list at zero: "floor 8: 0" is an answer, an absent row is an ambiguity.
+- `GarageToolResult.configuredInScope` gives the count a denominator, so the summary reads "47 of the 316 mapped spaces on floors 7-9" rather than a bare 47.
+- `describeFloors` collapses a contiguous run, so the answer reads back the scope the way it was asked: "on floors 7-9", "on floors 1, 5 and 11", "on floor 7".
+- `fallbackText` in `mcp.ts` now leads with that summary, adds the per-floor line, and states whether the listed bays are all of them. This is the model-visible text for the **Copilot Studio** route, which does get it in the same turn.
+- `baseResult` took its optional tail as an object; it had reached the point where call sites passed `undefined` to skip a parameter.
+
+Fixes, component side:
+
+- `ResultSummary` renders the answer sentence, a per-floor badge row, and a coverage line ("Every match is shown below." / "35 more are not shown…") above the grid on both list cards. The grid shows examples; this block is what makes the card answer the question.
+- The model context leads with the same sentence and adds `answer`, `floorBreakdown`, `configuredInScope`, `listedBays`, and `isCompleteList` to `structuredContent`, plus an explicit "All N are listed below" / "the remainder are not in this payload" line — without it the model reads a 12-row list as the total.
+- Instructions tell the agent to pass `floors` whenever any floor is named, never to answer a multi-floor question from a single-floor call, and never to count the listed bays to produce a total.
+
+**The `floors` tool parameter is a string (`"7-9"`, `"2,5,9"`), not an array, on the SPFx route only.** This host is documented below to strip schema keywords it cannot carry, and a stripped parameter does not fail loudly — it silently widens the query to the whole garage, which is the exact bug being fixed. A string parameter is known to survive the pipeline, and `parseFloors` expands ranges, lists, `to`/`through`, and reversed bounds client-side. The build output confirms it survives intact. The MCP route keeps a real integer array, since MCP carries full JSON Schema.
+
+Verified locally against live data before deploying (`AUTH_MODE=none` on port 3099, 946 configured spaces):
+
+| Query | Result |
+| --- | --- |
+| `?floors=7,8,9` | "47 of the 316 mapped spaces on floors 7-9…", breakdown floor 7: 47 of 100, floor 8: 0 of 110, floor 9: 0 of 106 |
+| `?floors=8,9` | "0 of the 216 mapped spaces on floors 8-9…", `hasMore: false` |
+| `?floors=1,5,11` | "…on floors 1, 5 and 11", all 2 matches listed, complete |
+| no filter | "98 of the 946 mapped spaces across all floors…", page contains only floor 7 |
+| `/api/plate-search`, `/api/overview` | unchanged, no breakdown, previews intact |
+
+The operational finding worth keeping: **every one of the 47 stale feeds on floors 7-9 is on floor 7, and they are ~6.8 days old** (`thumbnailAgeMinutes` ≈ 9,806). Floors 8 and 9 are completely clean. That is precisely the answer the old card could not give.
+
 ### Gotchas
 
+- **A stripped tool parameter fails silently, so prefer shapes known to survive.** The build logs which keywords it drops (`Stripped unsupported schema keyword(s) … [additionalProperties, $schema]`), but a dropped *parameter* produces no warning at all — the tool is simply called without it, and a missing filter reads as "no filter", which is a wrong answer rather than an error. This is why the SPFx `floors` parameter is a string the component parses rather than an integer array.
 - **`updateModelContextAsync` lands on the *next* user message, not the current turn.** On the first turn the agent said it "returned an interactive component" but could not list details. That is by design — the API docs state each call overwrites the previous context and is sent to the model on the next message. Use `sendFollowUpMessageAsync` if an immediate narrated turn is ever needed.
 - The build strips unsupported JSON Schema keywords from tool parameters: `Stripped unsupported schema keyword(s) … [exclusiveMinimum, additionalProperties, $schema]`. Zod refinements like `.positive()` do not survive into the Copilot-facing schema — enforce them server-side (we do).
 - Probing a freshly deployed Container App revision can race container startup. `/api/stale-feeds` returned 404 at 02:18:52 while the new container only logged "listening" at 02:18:57; it returned the correct 401 moments later. Check the startup log line before concluding a route is missing.

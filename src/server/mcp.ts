@@ -63,7 +63,8 @@ export function createParkAssistMcpServer(parking: ParkingDataService): McpServe
       title: "Find available parking spaces",
       description: "Find live, vacant, in-service parking spaces. Use a floor or designation such as Handicapped, General, VP, Officer, or Company Electric Vehicle when the user specifies one.",
       inputSchema: z.object({
-        floor: z.number().int().min(1).max(11).optional().describe("Garage floor number."),
+        floor: z.number().int().min(1).max(11).optional().describe("A single garage floor. Use `floors` for more than one."),
+        floors: z.array(z.number().int().min(1).max(11)).optional().describe("Garage floors to include. Expand a range into every floor it covers, so \"floors 7 to 9\" is [7, 8, 9]. Omit for the whole garage."),
         designation: z.string().trim().min(1).optional().describe("Optional parking designation or space type."),
         limit: z.number().int().min(1).max(24).default(12),
         page: z.number().int().min(1).default(1),
@@ -98,7 +99,8 @@ export function createParkAssistMcpServer(parking: ParkingDataService): McpServe
       description: "Identify 5 Bell bays whose latest camera thumbnail is older than the threshold or whose camera timestamp is missing. Returns short-lived camera preview URLs and sensor health context.",
       inputSchema: z.object({
         thresholdMinutes: z.number().int().min(1).max(10_080).default(config.staleAfterMinutes),
-        floor: z.number().int().min(1).max(11).optional(),
+        floor: z.number().int().min(1).max(11).optional().describe("A single garage floor. Use `floors` for more than one."),
+        floors: z.array(z.number().int().min(1).max(11)).optional().describe("Garage floors to include. Expand a range into every floor it covers, so \"floors 7 to 9\" is [7, 8, 9]. Omit for the whole garage."),
         includeOutOfService: z.boolean().default(true),
         limit: z.number().int().min(1).max(24).default(12),
         page: z.number().int().min(1).default(1),
@@ -118,8 +120,22 @@ function toCallToolResult(result: GarageToolResult): CallToolResult {
   };
 }
 
+/**
+ * Per-floor counts as a line the model can quote. Counting the bay list itself
+ * would be unreliable and, worse, wrong: that list is one page of `totalMatches`.
+ */
+function floorBreakdownText(result: GarageToolResult): string {
+  if (!result.floorBreakdown || result.floorBreakdown.length < 2) return "";
+  const parts = result.floorBreakdown.map((entry) => `floor ${entry.floor}: ${entry.count} of ${entry.configured}`);
+  return `\nBy floor — ${parts.join(", ")}.`;
+}
+
 function fallbackText(result: GarageToolResult): string {
-  if (result.bays.length === 0) return `${result.title}: ${result.summary}`;
+  const headline = `${result.title}: ${result.summary}${floorBreakdownText(result)}`;
+  if (result.bays.length === 0) return headline;
+  const listed = result.hasMore
+    ? `\nThe ${result.bays.length} most severe of ${result.totalMatches} are listed below; ask for a later page for the rest.`
+    : `\nAll ${result.totalMatches} are listed below.`;
   const details = result.bays.map((bay) => {
     const status = bay.feedState === "stale"
       ? `camera ${Math.round(bay.thumbnailAgeMinutes ?? 0)} minutes old`
@@ -127,5 +143,5 @@ function fallbackText(result: GarageToolResult): string {
     const plate = bay.plateDisplay ? `, plate ${bay.plateDisplay}` : "";
     return `Space ${bay.spaceNumber} (bay ${bay.bayId}, floor ${bay.floor}): ${status}${plate}`;
   });
-  return `${result.title}: ${result.summary}\n${details.join("\n")}`;
+  return `${headline}${listed}\n${details.join("\n")}`;
 }
