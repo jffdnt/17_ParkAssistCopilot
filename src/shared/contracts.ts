@@ -76,6 +76,13 @@ export interface GarageToolResult {
   floorBreakdown?: GarageFloorCount[];
   /** Bays in the bay map across the requested floors, the denominator for `totalMatches`. */
   configuredInScope?: number;
+  /**
+   * The same counters as `metrics`, restricted to the requested floors. Present
+   * on the filtered list views. Read this rather than `metrics` when a floor
+   * filter was applied: `metrics` stays garage-wide, and showing a garage-wide
+   * counter beside a floor-scoped total reads as a contradiction.
+   */
+  metricsInScope?: GarageMetrics;
   filters?: {
     floor?: number;
     floors?: number[];

@@ -39,6 +39,7 @@ interface BaseResultExtras {
   query?: string;
   floorBreakdown?: GarageFloorCount[];
   configuredInScope?: number;
+  metricsInScope?: GarageMetrics;
 }
 
 interface ListOptions {
@@ -114,6 +115,7 @@ export class ParkingDataService {
         hasMore: paged.hasMore,
         floorBreakdown: floorBreakdown(matches, snapshot.bays, floors),
         configuredInScope: countInScope(snapshot.bays, floors),
+        metricsInScope: computeMetrics(baysInScope(snapshot.bays, floors), this.options.staleAfterMinutes),
       },
     );
     return this.withCard(result);
@@ -183,6 +185,7 @@ export class ParkingDataService {
         hasMore: paged.hasMore,
         floorBreakdown: floorBreakdown(matches, snapshot.bays, floors),
         configuredInScope,
+        metricsInScope: computeMetrics(baysInScope(snapshot.bays, floors), thresholdMinutes),
       },
     );
     result.staleAfterMinutes = thresholdMinutes;
@@ -227,21 +230,11 @@ export class ParkingDataService {
         };
       });
 
-    const available = bays.filter((bay) => bay.foundInLiveApi && !bay.occupied && !bay.outOfService && !bay.reserved).length;
-    const occupied = bays.filter((bay) => bay.occupied).length;
-    const metrics: GarageMetrics = {
-      configured: bays.length,
-      live: bays.filter((bay) => bay.foundInLiveApi).length,
-      occupied,
-      available,
-      reserved: bays.filter((bay) => bay.reserved).length,
-      outOfService: bays.filter((bay) => bay.outOfService).length,
-      staleFeeds: bays.filter((bay) => bay.thumbnailTimestamp && (bay.thumbnailAgeMinutes ?? 0) > staleAfterMinutes).length,
-      missingFeeds: bays.filter((bay) => bay.foundInLiveApi && !bay.thumbnailTimestamp).length,
-      offlineSensors: bays.filter((bay) => bay.lastContact && (bay.lastContactAgeMinutes ?? 0) > staleAfterMinutes).length,
-      occupancyPercent: bays.length === 0 ? 0 : Math.round((occupied / bays.length) * 100),
+    return {
+      generatedAt: new Date(now).toISOString(),
+      bays,
+      metrics: computeMetrics(bays, staleAfterMinutes),
     };
-    return { generatedAt: new Date(now).toISOString(), bays, metrics };
   }
 
   private async getLiveBays(): Promise<ParkAssistBay[]> {
@@ -333,6 +326,7 @@ export class ParkingDataService {
       query: extras.query,
       floorBreakdown: extras.floorBreakdown,
       configuredInScope: extras.configuredInScope,
+      metricsInScope: extras.metricsInScope,
       filters: extras.filters,
     };
   }
@@ -376,9 +370,36 @@ function describeFloors(floors: number[] | undefined): string {
   return `on floors ${floors.slice(0, -1).join(", ")} and ${floors[floors.length - 1]}`;
 }
 
+/** The bays a request is scoped to; every bay when no floor filter was given. */
+function baysInScope(bays: MergedGarageBay[], floors: number[] | undefined): MergedGarageBay[] {
+  return floors ? bays.filter((bay) => floors.includes(bay.floor)) : bays;
+}
+
 /** Bays in the bay map across the requested floors — the denominator for a match count. */
 function countInScope(bays: MergedGarageBay[], floors: number[] | undefined): number {
-  return floors ? bays.filter((bay) => floors.includes(bay.floor)).length : bays.length;
+  return baysInScope(bays, floors).length;
+}
+
+/**
+ * Counters over a set of bays. Extracted from the snapshot so the same
+ * definitions can be applied to a floor subset: a card that reports a
+ * floor-scoped total next to garage-wide counters shows two correct numbers
+ * answering different questions, which reads as a contradiction.
+ */
+function computeMetrics(bays: MergedGarageBay[], staleAfterMinutes: number): GarageMetrics {
+  const occupied = bays.filter((bay) => bay.occupied).length;
+  return {
+    configured: bays.length,
+    live: bays.filter((bay) => bay.foundInLiveApi).length,
+    occupied,
+    available: bays.filter((bay) => bay.foundInLiveApi && !bay.occupied && !bay.outOfService && !bay.reserved).length,
+    reserved: bays.filter((bay) => bay.reserved).length,
+    outOfService: bays.filter((bay) => bay.outOfService).length,
+    staleFeeds: bays.filter((bay) => bay.thumbnailTimestamp && (bay.thumbnailAgeMinutes ?? 0) > staleAfterMinutes).length,
+    missingFeeds: bays.filter((bay) => bay.foundInLiveApi && !bay.thumbnailTimestamp).length,
+    offlineSensors: bays.filter((bay) => bay.lastContact && (bay.lastContactAgeMinutes ?? 0) > staleAfterMinutes).length,
+    occupancyPercent: bays.length === 0 ? 0 : Math.round((occupied / bays.length) * 100),
+  };
 }
 
 /**

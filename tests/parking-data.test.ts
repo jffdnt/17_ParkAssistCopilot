@@ -127,6 +127,49 @@ describe("parking data tools", () => {
     expect(result.title).toBe("Stale camera feeds on floors 2–3");
   });
 
+  it("scopes the card's counters to the requested floors", async () => {
+    const result = await service.getStaleCameraFeeds({ floors: [2, 3], thresholdMinutes: 15, limit: 12, page: 1 });
+
+    // Garage-wide metrics stay put for the overview; the scoped set is what the
+    // card reads, so it cannot show a garage total under a floor-scoped summary.
+    expect(result.metrics.configured).toBe(4);
+    expect(result.metricsInScope).toMatchObject({ configured: 3, staleFeeds: 1, missingFeeds: 1, outOfService: 1 });
+
+    const body = result.adaptiveCard?.body as Record<string, unknown>[];
+    const scopeLabel = body.find((item) => item.text === "Floors 2–3");
+    expect(scopeLabel).toBeDefined();
+
+    const factSets = body.filter((item) => item.type === "FactSet");
+    // Camera health reports stale and missing separately so they reconcile
+    // with the summary, which counts them together.
+    expect(factSets[0].facts).toEqual([
+      { title: "Stale feeds", value: "1" },
+      { title: "Missing feeds", value: "1" },
+      { title: "Offline sensors", value: "1" },
+      { title: "Out of service", value: "1" },
+    ]);
+    expect(factSets[1].facts).toEqual([
+      { title: "Floor 2", value: "2 of 2" },
+      { title: "Floor 3", value: "0 of 1" },
+    ]);
+  });
+
+  it("says how much of the match set the card shows, not how much the page holds", async () => {
+    const complete = await service.getStaleCameraFeeds({ thresholdMinutes: 15, limit: 12, page: 1 });
+    const completeBody = complete.adaptiveCard?.body as Record<string, unknown>[];
+    // Two matches, both rendered: nothing to disclose.
+    expect(complete.hasMore).toBe(false);
+    expect(completeBody.some((item) => String(item.text ?? "").startsWith("Showing "))).toBe(false);
+  });
+
+  it("labels an unfiltered card garage-wide", async () => {
+    const result = await service.getStaleCameraFeeds({ thresholdMinutes: 15, limit: 12, page: 1 });
+    const body = result.adaptiveCard?.body as Record<string, unknown>[];
+    expect(body.some((item) => item.text === "Garage-wide")).toBe(true);
+    // One floor in the results, so no split is drawn.
+    expect((body.filter((item) => item.type === "FactSet")).length).toBe(1);
+  });
+
   it("scopes availability to a set of floors", async () => {
     const scoped = await service.findAvailableSpaces({ floors: [2, 3], limit: 12, page: 1 });
     expect(scoped.totalMatches).toBe(0);

@@ -207,8 +207,30 @@ Two things could not be verified from the CLI and are unchanged limitations, not
 
 A delegated token for an end-to-end live probe was not obtained: `az account get-access-token --resource api://750929bd-…` requires an interactive `az login --scope api://…/.default`, which would have to replace the existing az session. The server behaviour was instead verified locally against the same live upstream data (table above), and the live deployment verified by revision, replica, startup log, and auth response.
 
+### Adaptive Card scoped to the requested floors (2026-09-12)
+
+The Adaptive Cards are what the **Copilot Studio / Teams** route renders (the SPFx Copilot Components render only in the Microsoft 365 Copilot UX — see the surface note in Gotchas), and they carried a version of the same mismatch the SPFx card had just been fixed for. `buildAdaptiveCard` hardcoded garage-wide `result.metrics`, so a floor-scoped query put "Stale feeds: 89" directly beneath "47 of the 316 mapped spaces on floors 7-9" — two correct numbers answering different questions.
+
+- `computeMetrics` was extracted out of `getSnapshot` so the same definitions can be applied to a floor subset, and the filtered list views now also return `metricsInScope` (`GarageToolResult.metricsInScope`). The card prefers it and falls back to `metrics`, so the overview is untouched.
+- The card names its scope ("Floors 7-9" / "Floor 7" / "Garage-wide") above the counters. Labelling is what makes them unambiguous; scoping alone would still leave the reader guessing.
+- The FactSet is view-aware. Camera health reports **stale and missing separately**, because the summary counts them together: 45 stale + 2 missing = the 47 in the summary. A lone "Stale feeds: 45" under a summary of 47 reads as an error. Availability reports the reasons a space is unusable (available / occupied / reserved / out of service) rather than camera state.
+- The per-floor breakdown is a second FactSet ("Floor 7 — 47 of 100"), drawn only when more than one floor is in scope.
+- **Truncation notice fixed**: it was keyed to `hasMore`, which describes the 12-item *page*, while the card renders at most 6 bays. With 8 matches, `hasMore` was false and the card showed 6 rows saying nothing. It now keys off what is actually displayed ("Showing 6 of 47") and the narrowing hint is view-aware — the old text told availability users to "raise the threshold", which that view does not have.
+
+Verified locally against live data, then deployed as `parkassist-mcp:20260912-181236` / revision `parkassist-mcp--0000007` (new replica `…-ksx77`, "listening" at 18:15:57, `/health` 946 spaces, `/api/stale-feeds?floors=7,8,9` returns 401 as expected without a token):
+
+| View | Card |
+| --- | --- |
+| stale feeds, floors 7-9 | "Floors 7-9" · stale 45, missing 2, offline 47, OOS 47 · floor 7: 47 of 100, floor 8: 0 of 110, floor 9: 0 of 106 · "Showing 6 of 47" |
+| availability, floors 7-9 | "Floors 7-9" · available 264 · floor 7: 53 of 100, floor 8: 107 of 110, floor 9: 104 of 106 (sums to 264) |
+| overview, plate search | "Garage-wide", counters and behaviour unchanged |
+
+No SPFx redeploy was needed — this is server-only, and the components do not read `adaptiveCard`.
+
 ### Gotchas
 
+- **Copilot Components render only in the Microsoft 365 Copilot UX during public preview.** Microsoft states this in both [Overview of SharePoint Copilot Apps](https://learn.microsoft.com/sharepoint/dev/spfx/copilot/overview-copilot-apps) ("During the public preview, SharePoint Copilot Apps render only in the Microsoft 365 Copilot user experience") and its Known issues ("Copilot UX only … Support for other surfaces and hosting options is in the works"). Because all four of this agent's tools *are* components, there is no degraded-but-working mode elsewhere — **Teams needs the Copilot Studio route and its Adaptive Cards.**
+- **"Add to Teams" in the app catalog does not make the app work in Teams.** It publishes the declarative agent to the tenant agent catalog; per the overview docs, "The label of this button will be updated in a future release to better reflect that it also publishes the agent." It is still the required step, just misleadingly named.
 - **A stripped tool parameter fails silently, so prefer shapes known to survive.** The build logs which keywords it drops (`Stripped unsupported schema keyword(s) … [additionalProperties, $schema]`), but a dropped *parameter* produces no warning at all — the tool is simply called without it, and a missing filter reads as "no filter", which is a wrong answer rather than an error. This is why the SPFx `floors` parameter is a string the component parses rather than an integer array.
 - **`updateModelContextAsync` lands on the *next* user message, not the current turn.** On the first turn the agent said it "returned an interactive component" but could not list details. That is by design — the API docs state each call overwrites the previous context and is sent to the model on the next message. Use `sendFollowUpMessageAsync` if an immediate narrated turn is ever needed.
 - The build strips unsupported JSON Schema keywords from tool parameters: `Stripped unsupported schema keyword(s) … [exclusiveMinimum, additionalProperties, $schema]`. Zod refinements like `.positive()` do not survive into the Copilot-facing schema — enforce them server-side (we do).
