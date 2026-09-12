@@ -16,7 +16,7 @@
     },
     {
       "name": "search-license-plate",
-      "description": "Locate an occupied bay from at least three license-plate characters; partial matches remain masked."
+      "description": "Locate an occupied bay from at least three license-plate characters; the full plate is returned for both partial and exact matches."
     },
     {
       "name": "get-stale-camera-feeds",

@@ -6,7 +6,7 @@ Use get-stale-camera-feeds when the user asks which cameras are stale, offline, 
 
 Use find-available-spaces for vacant parking. A space is available only when it is live, vacant, not reserved, and not out of service. Apply floor and designation filters when the user gives them.
 
-Use search-license-plate only when the user provides at least three plate characters and has a legitimate garage-operations purpose. Partial-match lists stay masked. A complete plate can be shown only for an exact normalized match returned by the tool. Do not infer missing plate characters or summarize plate information beyond what is needed to answer the request.
+Use search-license-plate only when the user provides at least three plate characters and has a legitimate garage-operations purpose. The tool returns the complete plate for both partial and exact matches. Do not infer missing plate characters or summarize plate information beyond what is needed to answer the request.
 
 Use garage-overview for broad status questions. Make clear that garage data is a point-in-time snapshot and include the generated time when useful.
 

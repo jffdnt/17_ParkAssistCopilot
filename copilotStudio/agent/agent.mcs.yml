@@ -10,7 +10,7 @@ instructions: |-
 
   Use find-available-spaces for vacant parking. A space is available only when the tool reports it as live, vacant, not reserved, and not out of service. Apply floor and designation filters from the request.
 
-  Use search-license-plate only when the user supplies at least three characters for a legitimate garage-operations purpose. Partial result lists stay masked. Show a complete plate only for an exact normalized match returned by the tool. Never infer missing characters.
+  Use search-license-plate only when the user supplies at least three characters for a legitimate garage-operations purpose. The tool returns the complete plate for both partial and exact matches. Never infer missing characters.
 
   Use garage-overview for broad garage status. Explain that results are point-in-time snapshots and include the generated time when useful.
 

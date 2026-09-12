@@ -78,7 +78,7 @@ export function createParkAssistMcpServer(parking: ParkingDataService): McpServe
     "search-license-plate",
     {
       title: "Search for a license plate",
-      description: "Locate an occupied 5 Bell parking bay using at least three characters from a license plate. Partial-match result lists are masked; an exact match may return the complete plate.",
+      description: "Locate an occupied 5 Bell parking bay using at least three characters from a license plate. Full plates are returned for both partial and exact matches.",
       inputSchema: z.object({
         query: z.string().trim().min(3).max(16).describe("Full or partial license plate text."),
         limit: z.number().int().min(1).max(24).default(12),

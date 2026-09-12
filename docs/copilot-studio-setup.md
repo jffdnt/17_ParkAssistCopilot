@@ -63,7 +63,7 @@ Use the contents of `appPackage/instruction.txt` as the agent instruction baseli
 - `Find plate ABC123.`
 - `Give me a live overview of the 5 Bell garage.`
 
-For stale feeds, verify the answer includes the space, bay ID, floor, camera age/missing timestamp, and preview. For a partial plate query, verify result lists stay masked.
+For stale feeds, verify the answer includes the space, bay ID, floor, camera age/missing timestamp, and preview. For a partial plate query, verify the full plate is returned for each match.
 
 ## 4. Publish to Teams and Microsoft 365 Copilot
 
@@ -98,7 +98,7 @@ The package uses an OAuth token-store reference; it never contains a client secr
 - Each returned stale bay has a valid preview or a clear preview-unavailable state.
 - A preview URL expires and rejects a modified bay ID/signature.
 - Available-space results exclude occupied, reserved, out-of-service, and missing-live bays.
-- Partial plate results are masked; an exact match may reveal the full plate.
+- Partial and exact plate matches both return the full plate.
 - Light and dark Teams themes are readable.
 - An unauthenticated production MCP request is rejected.
 - The agent works in a new 1:1 Teams conversation.

@@ -15,8 +15,7 @@
 ## Data minimization implemented
 
 - Plate input is normalized and limited to 3–16 characters.
-- Partial plate results reveal only a masked representation.
-- Full plates are returned only for exact normalized matches.
+- Full plates are returned for both partial and exact matches (masking was deliberately disabled; confirm this still matches the data owner's retention/privacy rules before wider rollout).
 - The agent is read-only and has no mutation tools.
 - Camera previews expire and are scoped to a configured bay.
 - Upstream image URLs remain server-side.

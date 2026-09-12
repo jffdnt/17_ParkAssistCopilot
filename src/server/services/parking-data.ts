@@ -76,7 +76,7 @@ export class ParkingDataService {
       `Available parking ${floorText}`,
       `${matches.length} ready-to-use spaces found ${floorText}.`,
       snapshot,
-      paged.items.map((bay) => this.toResult(bay, false)),
+      paged.items.map((bay) => this.toResult(bay)),
       matches.length,
       {
         floor: options.floor,
@@ -106,7 +106,7 @@ export class ParkingDataService {
         ? "No matching occupied spaces were found."
         : `${matches.length} matching vehicle${matches.length === 1 ? "" : "s"} found.`,
       snapshot,
-      paged.items.map((bay) => this.toResult(bay, normalizePlate(bay.plate ?? "") === normalizedQuery)),
+      paged.items.map((bay) => this.toResult(bay)),
       matches.length,
       undefined,
       paged.hasMore,
@@ -139,7 +139,7 @@ export class ParkingDataService {
       `Stale camera feeds${floorText}`,
       `${matches.length} camera feed${matches.length === 1 ? " is" : "s are"} older than ${thresholdMinutes} minutes or missing telemetry.`,
       snapshot,
-      paged.items.map((bay) => this.toResult(bay, false, true, thresholdMinutes)),
+      paged.items.map((bay) => this.toResult(bay, true, thresholdMinutes)),
       matches.length,
       {
         floor: options.floor,
@@ -248,7 +248,7 @@ export class ParkingDataService {
     throw lastError instanceof Error ? lastError : new Error("Upstream request failed.");
   }
 
-  private toResult(bay: MergedGarageBay, revealExactPlate: boolean, includeImage = false, staleAfterMinutes = this.options.staleAfterMinutes): GarageBayResult {
+  private toResult(bay: MergedGarageBay, includeImage = false, staleAfterMinutes = this.options.staleAfterMinutes): GarageBayResult {
     return {
       bayId: bay.bayId,
       spaceNumber: bay.spaceNumber,
@@ -257,7 +257,7 @@ export class ParkingDataService {
       occupied: bay.occupied,
       outOfService: bay.outOfService,
       reserved: bay.reserved,
-      plateDisplay: bay.plate ? (revealExactPlate ? bay.plate : maskPlate(bay.plate)) : undefined,
+      plateDisplay: bay.plate ?? undefined,
       plateConfidence: bay.plateConfidence,
       visitEnteredAt: bay.visitEnteredAt,
       thumbnailTimestamp: bay.thumbnailTimestamp,
@@ -326,12 +326,6 @@ function normalizeBayCollection(payload: unknown): ParkAssistBay[] {
 
 function normalizePlate(value: string): string {
   return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-}
-
-function maskPlate(value: string): string {
-  const normalized = normalizePlate(value);
-  if (normalized.length <= 2) return "••";
-  return `${normalized.slice(0, 1)}${"•".repeat(Math.max(2, normalized.length - 3))}${normalized.slice(-2)}`;
 }
 
 function optionalString(value: unknown): string | undefined {

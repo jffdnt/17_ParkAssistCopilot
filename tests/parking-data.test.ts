@@ -69,9 +69,9 @@ describe("parking data tools", () => {
     expect(result.bays.map((bay) => bay.bayId)).toEqual(["b1"]);
   });
 
-  it("masks partial plate matches and reveals an exact match", async () => {
+  it("returns the full plate for partial and exact matches", async () => {
     const partial = await service.searchLicensePlate("ABC", { limit: 12, page: 1 });
-    expect(partial.bays[0].plateDisplay).not.toBe("ABC 123");
+    expect(partial.bays[0].plateDisplay).toBe("ABC 123");
 
     const exact = await service.searchLicensePlate("ABC123", { limit: 12, page: 1 });
     expect(exact.bays[0].plateDisplay).toBe("ABC 123");

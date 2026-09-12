@@ -118,7 +118,7 @@ Current Microsoft guidance:
 ## Privacy and operational limits
 
 - Read-only: no reservations, alert dismissal, or source-system writes.
-- Plate searches require at least three characters. Partial-match lists stay masked; only an exact normalized match may reveal the full plate.
+- Plate searches require at least three characters. Both partial and exact matches return the full plate.
 - Camera URLs are HMAC-signed, bay-scoped, and expire after five minutes by default.
 - Camera bytes are proxied; upstream URLs and credentials are never sent to the client.
 - Responses are point-in-time snapshots and show their generated time.
