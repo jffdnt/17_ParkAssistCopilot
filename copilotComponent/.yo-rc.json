@@ -1,0 +1,22 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "whichFolder": "subdir",
+    "solutionName": "copilotComponent",
+    "environment": "spo",
+    "packageManager": "npm",
+    "skipFeatureDeployment": true,
+    "useGulp": false,
+    "componentType": "copilotComponent",
+    "template": "react",
+    "componentName": "StaleCameraFeeds",
+    "componentDescription": "Live stale camera feed review for the 5 Bell garage",
+    "plusBeta": true,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.15.0",
+    "sdksVersions": {},
+    "version": "1.24.0-beta.3",
+    "libraryName": "copilot-component",
+    "libraryId": "26d40212-4f04-4670-97c4-e70d19457b7c",
+    "solutionShortDescription": "copilotComponent description"
+  }
+}

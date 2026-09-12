@@ -36,6 +36,9 @@ export const config = {
   cameraUrlTtlSeconds: integerFromEnv("CAMERA_URL_TTL_SECONDS", 300),
   sharePointSiteUrl: process.env.SHAREPOINT_SITE_URL,
   sharePointListName: process.env.SHAREPOINT_LIST_NAME ?? "SensorHealth",
+  // Browser origins allowed to call /api/* — the SPFx Copilot Component runs on the
+  // tenant's SharePoint origin, so it needs CORS that the MCP transport does not.
+  corsAllowedOrigins: listFromEnv("CORS_ALLOWED_ORIGINS", []),
 } as const;
 
 if (config.authMode === "api-key" && !config.mcpApiKey) {

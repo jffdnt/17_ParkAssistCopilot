@@ -110,6 +110,49 @@ Installed **ParkAssist Copilot-dev** from Teams' app store (`Apps → Built for 
 - Enabled Copilot **developer mode** (`-developer on` in the chat, per [enabling developer mode](https://learn.microsoft.com/microsoft-365/copilot/extensibility/prerequisites#enabling-developer-mode)) to try to get the debug information card documented in [Troubleshoot MCP and API plugin authentication](https://learn.microsoft.com/microsoft-365/copilot/extensibility/plugin-authentication-troubleshooting) — no debug card, no sign-in prompt, and no additional detail appeared; the response text was identical to without developer mode.
 - Manually re-verified every value the troubleshooting doc calls out as a common cause, all correct: `ai-plugin.dev.json`'s `reference_id` (`1f35027f-...`) matches the Entra SSO registration ID in Teams Developer Portal; the registration's **Base URL** (`https://parkassist-mcp.happyground-f091a09b.eastus.azurecontainerapps.io/mcp`) matches the plugin's `runtimes[0].spec.url` exactly; **Teams app ID** restriction matches (`14e36884-...`); the registration's **Client (application) ID** (`750929bd-...`) and **scope** (`access_as_user`) match the Entra app. This app has no `bots`/`composeExtensions` entry (`composeExtensions: []` in manifest.json) — it's declarative-agent-only, so there's no separate Teams-bot chat surface to fall back to for comparison.
 - Found a Microsoft Q&A thread ([M365 Copilot - Cowork cannot make a connection to custom MCP](https://learn.microsoft.com/answers/a/12775868)) describing the identical symptom for a different custom MCP plugin: works when configured correctly, but the "Connect"/auth step silently does nothing in the M365 Copilot surface specifically. This, plus the total absence of any request reaching our server or any debug/sign-in UI appearing, points to a **Microsoft-side reliability or preview-feature limitation** in the `OAuthPluginVault` + `RemoteMCPServer` combination for M365 Copilot chat, rather than a fixable misconfiguration in this repo.
-- **Not yet tried**: testing from the Teams desktop or mobile client instead of the web/`teams.cloud.microsoft` surface (some Copilot extensibility features roll out client-by-client); opening a Microsoft support case, since this is a licensed-tenant preview feature issue outside what `az`/`pac` tooling can diagnose further.
+- **Superseded 2026-09-12** — see "M365 Copilot route rebuilt on Copilot Components" below. Rather than keep chasing the `OAuthPluginVault` failure, the M365 route was rebuilt on SPFx Copilot Components, which removes that mechanism entirely. The declarative agent in `appPackage/` is now the legacy path.
+- **Not tried before the rebuild**: testing from the Teams desktop or mobile client instead of the web/`teams.cloud.microsoft` surface; opening a Microsoft support case.
+
+## M365 Copilot route rebuilt on Copilot Components (2026-09-12) — WORKING
+
+The `OAuthPluginVault` + `RemoteMCPServer` route above never reached our server. **SPFx Copilot Components** (SPFx 1.24 preview; called "SharePoint Copilot Apps" in the July preview) replace it, and the new route is verified working end to end. Source lives in `copilotComponent/`.
+
+### Why this fixes it
+
+Copilot Components are the same MCP Apps model, but Microsoft hosts the component inside the tenant. The build merges your component's tools into `ai-plugin.json` and emits `"auth": { "type": "None" }` against a Microsoft-hosted `{{TENANT_MCP_URL}}` — **there is no `OAuthPluginVault` and no Enterprise Token Store OBO anywhere in the pipeline**, so the exact mechanism that was silently failing is gone. The component instead runs client-side in the tenant and calls ParkAssist directly with the signed-in user's delegated token via `AadHttpClient`, which `src/server/auth.ts` already validates (audience + `access_as_user`).
+
+A prerequisite finding: this model was previously blocked in this same tenant by a widget-sandbox bug (empty `ui/csp`, nested iframe never initialized) documented in `C:\dev\16_CopilotApp\adr\ADR-003`. **SPFx 1.24.0-beta.3 (2026-08-27) fixes it** — beta.3 emits a populated `ui/csp` block and adds build-time agent-manifest validation. That was confirmed by upgrading and redeploying the sibling project before any ParkAssist work started.
+
+### Server changes
+
+- Added `GET /api/stale-feeds` (`src/server/index.ts`), behind the same `requireMcpAuthorization` as `/mcp`. The SPFx component needs plain REST; making it speak MCP JSON-RPC (initialize → session id → `tools/call`) from the browser would be needless complexity.
+- Added scoped CORS for `/api/*` driven by a new `CORS_ALLOWED_ORIGINS` env var (`src/server/config.ts`). The MCP transport never needed CORS; the component does, because it runs on the tenant's SharePoint origin. Set to `https://castletonstage.sharepoint.com` on the Container App. Verified: allowed origin gets the header, other origins get none.
+- Fixed `.dockerignore` — bare `node_modules`/`dist` only match the context root, so `copilotComponent/node_modules` was being uploaded to ACR. Added `**/` variants and excluded `copilotComponent` outright.
+
+### SPFx solution (`copilotComponent/`)
+
+- Scaffolded non-interactively: `yo @microsoft/sharepoint --solution-name copilotComponent --component-type copilotComponent --component-name StaleCameraFeeds --framework react --plusbeta --skip-feature-deployment`.
+- `StaleFeedService` calls `/api/stale-feeds` through `AadHttpClient` against resource `api://750929bd-e2b6-4019-838c-365c36cbcb22`.
+- `config/package-solution.json` declares `webApiPermissionRequests` for resource **`ParkAssist Copilot`** / `access_as_user`. The resource string must match the Entra app's display name exactly — ADR-003 §2.1 lost time to this with a mismatched name. Approved once in SharePoint Admin Center → Advanced → API access (the `m365 spo serviceprincipal permissionrequest` commands still fail with "unauthorized operation", as ADR-003 §2.4 found).
+- The component pushes `updateModelContextAsync({ content, structuredContent })` after loading so Copilot can answer follow-ups about the data.
+
+### Deployment steps
+
+1. `npx heft build --production && npx heft package-solution --production`.
+2. `m365 spo app add --filePath ./sharepoint/solution/parkassist-garage-copilot-component.sppkg --appCatalogScope tenant --overwrite`, then `m365 spo app deploy`.
+3. Approve the API permission request in SharePoint Admin Center → Advanced → API access.
+4. In the app catalog UI: select the app → **Add to all sites** (enforced prerequisite) → **Add to Teams**. Still no CLI equivalent for the `SyncSolutionToTeams` step.
+5. In Microsoft 365 Copilot → More agents → Agent Store → "Built by your org" → **ParkAssist Garage** → Add.
+
+### Verified 2026-09-12
+
+- Card renders inline and in fullscreen with live data: *"125 stale or missing across all floors · threshold 15 min"*, real bay IDs/floors/ages, and the HMAC-signed camera previews loading correctly.
+- Follow-up question returned model-visible data: *"Total stale or missing camera feeds: 123 … using a 15-minute staleness threshold"* plus a full Bay ID/Space table for floor 7. The 125→123 difference across the two snapshots is live data moving, which also confirms it is not cached.
+
+### Gotchas
+
+- **`updateModelContextAsync` lands on the *next* user message, not the current turn.** On the first turn the agent said it "returned an interactive component" but could not list details. That is by design — the API docs state each call overwrites the previous context and is sent to the model on the next message. Use `sendFollowUpMessageAsync` if an immediate narrated turn is ever needed.
+- The build strips unsupported JSON Schema keywords from tool parameters: `Stripped unsupported schema keyword(s) … [exclusiveMinimum, additionalProperties, $schema]`. Zod refinements like `.positive()` do not survive into the Copilot-facing schema — enforce them server-side (we do).
+- Probing a freshly deployed Container App revision can race container startup. `/api/stale-feeds` returned 404 at 02:18:52 while the new container only logged "listening" at 02:18:57; it returned the correct 401 moments later. Check the startup log line before concluding a route is missing.
 - Also noticed **`appPackage/build/ai-plugin.dev.json` is stale** — it still has the pre-2026-09-12 "partial matches remain masked" tool description. Unrelated to the SSO failure, but re-run `./scripts/package-agent.ps1` (or `atk provision`/`publish`) before relying on this package again so the tool descriptions match the current no-masking behavior.
 - **Re-published** after the workspace sync and settings fix above — confirmed *"Your agent was published at 7:49 PM on 9/11/2026!"*. This publish includes the hardened instructions (pushed via `pac copilot push`) and the disabled model-knowledge/web/file/semantic-search settings; the first publish did not.

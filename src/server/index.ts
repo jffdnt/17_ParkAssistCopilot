@@ -92,6 +92,46 @@ async function main(): Promise<void> {
     }
   });
 
+  // The SPFx Copilot Component calls this from the browser on the tenant's SharePoint
+  // origin, so it needs CORS. The MCP transport does not, which is why this is scoped
+  // to /api/stale-feeds rather than applied globally.
+  const applyCors = (request: Request, response: Response): void => {
+    const origin = request.headers.origin;
+    if (origin && config.corsAllowedOrigins.includes(origin)) {
+      response.setHeader("Access-Control-Allow-Origin", origin);
+      response.setHeader("Vary", "Origin");
+      response.setHeader("Access-Control-Allow-Headers", "authorization,content-type");
+      response.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+    }
+  };
+
+  app.options("/api/stale-feeds", (request: Request, response: Response) => {
+    applyCors(request, response);
+    response.status(204).end();
+  });
+
+  app.get("/api/stale-feeds", (request: Request, response: Response, next) => {
+    applyCors(request, response);
+    requireMcpAuthorization(request, response, next);
+  }, async (request: Request, response: Response) => {
+    const floorValue = Number.parseInt(String(request.query.floor ?? ""), 10);
+    const thresholdValue = Number.parseInt(String(request.query.thresholdMinutes ?? ""), 10);
+    const limitValue = Number.parseInt(String(request.query.limit ?? ""), 10);
+
+    try {
+      const result = await parking.getStaleCameraFeeds({
+        floor: Number.isFinite(floorValue) ? floorValue : undefined,
+        thresholdMinutes: Number.isFinite(thresholdValue) ? thresholdValue : undefined,
+        limit: Number.isFinite(limitValue) ? limitValue : 12,
+        page: 1,
+      });
+      response.json(result);
+    } catch (error) {
+      console.error("Stale feed lookup failed.", error);
+      response.status(502).json({ error: "The garage service is temporarily unavailable." });
+    }
+  });
+
   app.all("/mcp", requireMcpAuthorization, (request: Request, response: Response) => {
     void nodeHandler(request, response, request.body);
   });

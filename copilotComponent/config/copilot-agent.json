@@ -1,0 +1,16 @@
+{
+  "$schema": "../node_modules/@microsoft/spfx-heft-plugins/lib-commonjs/plugins/copilotAgentPlugin/copilot-agent.schema.json",
+  "agents": [
+    {
+      "name": {
+        "default": "ParkAssist Garage"
+      },
+      "description": {
+        "default": "Live camera-health review for the 5 Bell parking garage."
+      },
+      "components": [
+        "ba8f08b7-95eb-4ae8-8aa1-387535207f7c"
+      ]
+    }
+  ]
+}

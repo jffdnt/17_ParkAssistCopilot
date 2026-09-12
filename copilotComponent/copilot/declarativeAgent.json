@@ -1,0 +1,23 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/copilot/declarative-agent/v1.8/schema.json",
+  "version": "v1.8",
+  "name": "ParkAssist Garage",
+  "description": "Live camera-health review for the 5 Bell parking garage.",
+  "instructions": "$[file('instruction.txt')]",
+  "conversation_starters": [
+    {
+      "title": "Stale camera feeds",
+      "text": "Which cameras have stale feeds?"
+    },
+    {
+      "title": "Check one floor",
+      "text": "Show stale camera feeds on floor 5."
+    }
+  ],
+  "actions": [
+    {
+      "id": "parkAssistStaleFeedsAction",
+      "file": "ai-plugin.json"
+    }
+  ]
+}

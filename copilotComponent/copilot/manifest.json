@@ -1,0 +1,35 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.29/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.29",
+  "version": "1.0.0",
+  "id": "6fe70260-1658-4715-9a75-9d49ebcf577c",
+  "developer": {
+    "name": "Castleton",
+    "websiteUrl": "https://www.example.com",
+    "privacyUrl": "https://www.example.com/privacy",
+    "termsOfUseUrl": "https://www.example.com/terms"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "ParkAssist Garage",
+    "full": "ParkAssist Garage camera health"
+  },
+  "description": {
+    "short": "Live camera-health review for the 5 Bell parking garage.",
+    "full": "Reviews live camera health for the 5 Bell parking garage, listing bays whose camera snapshot is stale or missing telemetry, with inline previews."
+  },
+  "accentColor": "#0078D4",
+  "copilotAgents": {
+    "declarativeAgents": [
+      {
+        "id": "parkAssistGarageAgent",
+        "file": "declarativeAgent.json"
+      }
+    ]
+  },
+  "permissions": ["identity"],
+  "validDomains": []
+}

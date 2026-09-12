@@ -1,0 +1,25 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/client-side-component-manifest.schema.json",
+  "id": "ba8f08b7-95eb-4ae8-8aa1-387535207f7c",
+  "alias": "StaleCameraFeedsCopilotComponent",
+  "componentType": "CopilotComponent",
+  "copilotType": "Ux",
+  "version": "*",
+  "manifestVersion": 2,
+
+  "capabilities": {
+    "availableDisplayModes": ["inline", "fullscreen"]
+  },
+
+  "tools": [
+    {
+      "name": "StaleCameraFeedsTool",
+      "description": {
+        "default": "Live stale camera feed review for the 5 Bell garage"
+      },
+      "propertiesSchema": {
+        "id": "$../../../lib/copilotComponents/staleCameraFeeds/StaleCameraFeedsCopilotComponentProperties.js:default;"
+      }
+    }
+  ]
+}

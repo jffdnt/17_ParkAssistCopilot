@@ -1,0 +1,9 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/copilot/plugin/v2.4/schema.json",
+  "schema_version": "v2.4",
+  "namespace": "parkAssistGarage",
+  "name_for_human": "ParkAssist Garage",
+  "description_for_human": "Live camera-health review for the 5 Bell parking garage.",
+  "description_for_model": "Reviews live camera health for the 5 Bell parking garage, listing bays whose camera snapshot is older than a staleness threshold or missing telemetry entirely, with inline previews.",
+  "contact_email": "jffdnt@gmail.com"
+}

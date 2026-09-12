@@ -1,6 +1,11 @@
 node_modules
+**/node_modules
 dist
+**/dist
 .git
 .env
 coverage
 *.log
+# The SPFx Copilot Component is a separate build target (.sppkg), not part of
+# the server image. Excluding it keeps the ACR build context small.
+copilotComponent
