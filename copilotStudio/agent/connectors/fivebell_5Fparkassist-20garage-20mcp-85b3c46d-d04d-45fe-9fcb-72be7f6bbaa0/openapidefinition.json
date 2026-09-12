@@ -1,0 +1,59 @@
+﻿{
+  "swagger": "2.0",
+  "info": {
+    "title": "ParkAssist Garage MCP",
+    "description": "Live read-only parking availability, authorized license-plate lookup, and stale camera-feed review for 5 Bell.",
+    "version": "1.0.0"
+  },
+  "host": "parkassist-mcp.happyground-f091a09b.eastus.azurecontainerapps.io",
+  "basePath": "/",
+  "schemes": [
+    "https"
+  ],
+  "paths": {
+    "/mcp": {
+      "post": {
+        "responses": {
+          "200": {
+            "description": "Immediate Response"
+          }
+        },
+        "x-ms-agentic-protocol": "mcp-streamable-1.0",
+        "operationId": "InvokeServer",
+        "summary": "ParkAssist Garage MCP",
+        "description": "Live read-only parking availability, authorized license-plate lookup, and stale camera-feed review for 5 Bell."
+      }
+    }
+  },
+  "securityDefinitions": {
+    "oauth2-auth": {
+      "type": "oauth2",
+      "flow": "accessCode",
+      "tokenUrl": "https://login.microsoftonline.com/6efb014c-08b0-427f-a89b-8b9b20f8acad/oauth2/v2.0/token",
+      "authorizationUrl": "https://login.microsoftonline.com/6efb014c-08b0-427f-a89b-8b9b20f8acad/oauth2/v2.0/authorize",
+      "scopes": {
+        "api://750929bd-e2b6-4019-838c-365c36cbcb22/access_as_user": "api://750929bd-e2b6-4019-838c-365c36cbcb22/access_as_user"
+      }
+    },
+    "oAuthClientCredentials": {
+      "type": "oauth2",
+      "flow": "application",
+      "tokenUrl": "https://login.microsoftonline.com/6efb014c-08b0-427f-a89b-8b9b20f8acad/oauth2/v2.0/token",
+      "scopes": {
+        "api://750929bd-e2b6-4019-838c-365c36cbcb22/access_as_user": "api://750929bd-e2b6-4019-838c-365c36cbcb22/access_as_user"
+      }
+    }
+  },
+  "security": [
+    {
+      "oauth2-auth": [
+        "api://750929bd-e2b6-4019-838c-365c36cbcb22/access_as_user"
+      ]
+    },
+    {
+      "oAuthClientCredentials": [
+        "api://750929bd-e2b6-4019-838c-365c36cbcb22/access_as_user"
+      ]
+    }
+  ]
+}

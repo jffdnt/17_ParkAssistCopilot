@@ -1,0 +1,3 @@
+﻿connectionReferences:
+  - connectionReferenceLogicalName: fivebell_ParkAssistCopilot.shared_fivebell-5fparkassist-20garage-20mcp-5f32f5df5297fc8ee8.05872a418dbd42e49514067180a988de
+    connectorId: /providers/Microsoft.PowerApps/apis/shared_fivebell-5fparkassist-20garage-20mcp-5f32f5df5297fc8ee8

@@ -1,0 +1,21 @@
+﻿{
+  "connectorid": "85b3c46d-d04d-45fe-9fcb-72be7f6bbaa0",
+  "name": "fivebell_5Fparkassist-20garage-20mcp",
+  "displayname": "ParkAssist Garage MCP",
+  "description": "Live read-only parking availability, authorized license-plate lookup, and stale camera-feed review for 5 Bell.",
+  "connectorinternalid": "shared_fivebell-5Fparkassist-20garage-20mcp-5F32f5df5297fc8ee8",
+  "openapidefinition": "connectors/fivebell_5Fparkassist-20garage-20mcp-85b3c46d-d04d-45fe-9fcb-72be7f6bbaa0/openapidefinition.json",
+  "connectionparameters": "connectors/fivebell_5Fparkassist-20garage-20mcp-85b3c46d-d04d-45fe-9fcb-72be7f6bbaa0/connectionparameters.json",
+  "connectionparametersets": null,
+  "policytemplateinstances": "connectors/fivebell_5Fparkassist-20garage-20mcp-85b3c46d-d04d-45fe-9fcb-72be7f6bbaa0/policytemplateinstances.json",
+  "iconbrandcolor": null,
+  "iconblob": "connectors/fivebell_5Fparkassist-20garage-20mcp-85b3c46d-d04d-45fe-9fcb-72be7f6bbaa0/iconblob.png",
+  "connectortype": 1,
+  "statecode": 0,
+  "statuscode": 1,
+  "ismanaged": false,
+  "componentstate": 0,
+  "createdon": "2026-09-11T23:42:08Z",
+  "modifiedon": "2026-09-11T23:42:10Z",
+  "versionnumber": 10410652
+}

@@ -1,0 +1,35 @@
+﻿{
+  "token": {
+    "type": "oAuthSetting",
+    "oAuthSettings": {
+      "clientId": "750929bd-e2b6-4019-838c-365c36cbcb22",
+      "customParameters": {
+        "grantType": {
+          "value": "code"
+        },
+        "AuthorizationUrl": {
+          "value": "https://login.microsoftonline.com/6efb014c-08b0-427f-a89b-8b9b20f8acad/oauth2/v2.0/authorize"
+        },
+        "RefreshUrl": {
+          "value": "https://login.microsoftonline.com/6efb014c-08b0-427f-a89b-8b9b20f8acad/oauth2/v2.0/token"
+        },
+        "TokenUrl": {
+          "value": "https://login.microsoftonline.com/6efb014c-08b0-427f-a89b-8b9b20f8acad/oauth2/v2.0/token"
+        }
+      },
+      "identityProvider": "oauth2pkce",
+      "scopes": [
+        "api://750929bd-e2b6-4019-838c-365c36cbcb22/access_as_user"
+      ],
+      "redirectMode": "GlobalPerConnector"
+    },
+    "uiDefinition": {
+      "displayName": "OAuth Connection",
+      "description": "OAuth Connection",
+      "constraints": {
+        "required": "true",
+        "hidden": false
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+mcs.metadata:
+  componentName: ParkAssist Garage MCP
+  description: Live read-only parking availability, authorized license-plate lookup, and stale camera-feed review for 5 Bell.
+kind: TaskDialog
+modelDisplayName: ParkAssist Garage MCP
+modelDescription: Live read-only parking availability, authorized license-plate lookup, and stale camera-feed review for 5 Bell.
+action:
+  kind: InvokeExternalAgentTaskAction
+  connectionReference: fivebell_ParkAssistCopilot.shared_fivebell-5fparkassist-20garage-20mcp-5f32f5df5297fc8ee8.05872a418dbd42e49514067180a988de
+  connectionProperties:
+    mode: Invoker
+
+  operationDetails:
+    kind: ModelContextProtocolMetadata
+    operationId: InvokeServer
