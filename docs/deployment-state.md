@@ -88,5 +88,9 @@ The CLI 2.8.1 `pac copilot init` operation imported the minimal agent solution a
 
 1. **Admin approval**: an M365 admin needs to approve the published app in Teams Admin Center (`https://aka.ms/teamsfx-mtac`) → Manage apps, search "ParkAssist Copilot", before it's available to users org-wide. (If `jffdnt@Castletonstage.onmicrosoft.com` already is the admin, this can be done directly there.)
 2. Replace placeholder `PUBLISHER_WEBSITE_URL`/`PRIVACY_URL`/`TERMS_OF_USE_URL` with real pages if this is ever submitted to the public Teams Store (not required for internal-only use).
-3. Publish the Copilot Studio agent (Publish button) so the newly added MCP tool is live in published channels, and push the hardened workspace instructions (`copilotStudio/README.md`'s `pac copilot push`/`publish` steps) once the remote connection reference is pulled down.
+3. Pull the remote agent (`pac copilot` from `copilotStudio/README.md`) to capture the generated MCP connection reference, reconcile it with the checked-in workspace, then push the hardened instructions in `copilotStudio/agent/agent.mcs.yml` (currently only the short instructions typed directly in the maker portal are live).
 4. Test a live stale-camera prompt in a new 1:1 Teams/Copilot chat, and separately verify the Teams/M365 SSO (on-behalf-of) route actually mints a token `auth.ts` accepts — it was never exercised end-to-end and could hit the same v1-vs-v2 audience issue the Copilot Studio connector hit.
+
+## Published (2026-09-12)
+
+- Clicked **Publish** in Copilot Studio (without "Force newest version" — no active users yet) — confirmed *"Your agent was published at 7:36 PM on 9/11/2026!"*. The MCP tool and current instructions are now the published version for any connected channel.
