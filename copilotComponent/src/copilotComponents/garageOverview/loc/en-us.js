@@ -8,8 +8,11 @@ define([], function() {
     "TotalSpacesLabel": "Configured spaces",
     "AvailableLabel": "Available",
     "OccupiedLabel": "Occupied",
+    "ReservedLabel": "Reserved",
     "OutOfServiceLabel": "Out of service",
     "StaleFeedsLabel": "Stale feeds",
+    "MissingFeedsLabel": "Missing feeds",
+    "OfflineSensorsLabel": "Offline sensors",
     "OccupancyLabel": "Occupancy"
   }
 });

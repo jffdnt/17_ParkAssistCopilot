@@ -29,14 +29,22 @@ export interface IGarageBay {
   imageUrl?: string;
 }
 
-/** Garage-wide counters the server computes for every snapshot. */
+/**
+ * Garage-wide counters the server computes for every snapshot. Mirrors
+ * `GarageMetrics` in `src/shared/contracts.ts`; `occupancyPercent` is already
+ * a percentage, not a 0–1 rate.
+ */
 export interface IGarageMetrics {
-  totalSpaces?: number;
+  configured?: number;
+  live?: number;
   occupied?: number;
   available?: number;
+  reserved?: number;
   outOfService?: number;
   staleFeeds?: number;
-  occupancyRate?: number;
+  missingFeeds?: number;
+  offlineSensors?: number;
+  occupancyPercent?: number;
 }
 
 /**

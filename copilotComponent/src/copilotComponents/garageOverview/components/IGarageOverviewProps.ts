@@ -10,8 +10,11 @@ export interface IGarageOverviewStrings {
   TotalSpacesLabel: string;
   AvailableLabel: string;
   OccupiedLabel: string;
+  ReservedLabel: string;
   OutOfServiceLabel: string;
   StaleFeedsLabel: string;
+  MissingFeedsLabel: string;
+  OfflineSensorsLabel: string;
   OccupancyLabel: string;
 }
 

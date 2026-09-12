@@ -40,12 +40,19 @@ export default function GarageOverview(props: IGarageOverviewProps): JSX.Element
     const tiles: { label: string; value: string; attention?: boolean }[] = [
       { label: strings.AvailableLabel, value: String(m.available ?? '—') },
       { label: strings.OccupiedLabel, value: String(m.occupied ?? '—') },
+      { label: strings.ReservedLabel, value: String(m.reserved ?? '—') },
       { label: strings.OutOfServiceLabel, value: String(m.outOfService ?? '—') },
       { label: strings.StaleFeedsLabel, value: String(m.staleFeeds ?? '—'), attention: (m.staleFeeds ?? 0) > 0 },
-      { label: strings.TotalSpacesLabel, value: String(m.totalSpaces ?? '—') },
+      { label: strings.MissingFeedsLabel, value: String(m.missingFeeds ?? '—'), attention: (m.missingFeeds ?? 0) > 0 },
+      {
+        label: strings.OfflineSensorsLabel,
+        value: String(m.offlineSensors ?? '—'),
+        attention: (m.offlineSensors ?? 0) > 0
+      },
+      { label: strings.TotalSpacesLabel, value: String(m.configured ?? '—') },
       {
         label: strings.OccupancyLabel,
-        value: m.occupancyRate === undefined ? '—' : `${Math.round(m.occupancyRate * 100)}%`
+        value: m.occupancyPercent === undefined ? '—' : `${Math.round(m.occupancyPercent)}%`
       }
     ];
 

@@ -7,8 +7,11 @@ declare interface IGarageOverviewCopilotComponentStrings {
   TotalSpacesLabel: string;
   AvailableLabel: string;
   OccupiedLabel: string;
+  ReservedLabel: string;
   OutOfServiceLabel: string;
   StaleFeedsLabel: string;
+  MissingFeedsLabel: string;
+  OfflineSensorsLabel: string;
   OccupancyLabel: string;
 }
 

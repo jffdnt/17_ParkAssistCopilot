@@ -22,9 +22,12 @@ export default class GarageOverviewCopilotComponent extends BaseGarageComponent<
           text:
             `ParkAssist 5 Bell garage overview generated ${result.generatedAt} ` +
             `(stale threshold ${result.staleAfterMinutes} minutes): ` +
-            `${m.totalSpaces ?? 'unknown'} configured spaces, ${m.available ?? 'unknown'} available, ` +
-            `${m.occupied ?? 'unknown'} occupied, ${m.outOfService ?? 'unknown'} out of service, ` +
-            `${m.staleFeeds ?? 'unknown'} stale or missing camera feeds.`
+            `${m.configured ?? 'unknown'} configured spaces, ${m.live ?? 'unknown'} reporting live, ` +
+            `${m.available ?? 'unknown'} available, ${m.occupied ?? 'unknown'} occupied, ` +
+            `${m.reserved ?? 'unknown'} reserved, ${m.outOfService ?? 'unknown'} out of service, ` +
+            `${m.occupancyPercent ?? 'unknown'}% occupancy. Camera health: ` +
+            `${m.staleFeeds ?? 'unknown'} stale feeds, ${m.missingFeeds ?? 'unknown'} missing feeds, ` +
+            `${m.offlineSensors ?? 'unknown'} offline sensors.`
         }
       ],
       structuredContent: {
