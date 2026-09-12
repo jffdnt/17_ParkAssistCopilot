@@ -157,7 +157,9 @@ Each tool was exercised in Microsoft 365 Copilot with natural language (not just
 
 **Bug found and fixed during verification**: the overview card initially showed em-dashes for Configured spaces and Occupancy because `IGarageMetrics` guessed at field names. The server's `GarageMetrics` contract uses `configured` and `occupancyPercent` (already a percentage, not a 0–1 rate), not `totalSpaces`/`occupancyRate`. Corrected, and the previously-dropped `reserved`, `missingFeeds`, `offlineSensors`, and `live` fields are now surfaced too.
 
-**Known cosmetic gap**: plate-search and availability results have no `imageUrl`, because the server only signs camera URLs for the stale-feed path (`includeImage`). Plate matches therefore render a "No telemetry" placeholder where a preview would help most when locating a vehicle. Passing `includeImage` through those endpoints would close this.
+**Camera previews on all bay views (added after the initial four-tool verification).** Originally only the stale-feed path signed camera URLs, so plate matches rendered a "No telemetry" placeholder exactly where a preview helps most — confirming you have found the right vehicle. `includeImage` is now a `ListOptions` flag, defaulting to `false` so the MCP tools keep their existing payloads, and `/api/plate-search` and `/api/available-spaces` opt in. Verified live: plate search for `XDK` renders both matches with real photos alongside their plates, and availability renders a photo per space.
+
+One consequence worth knowing: the availability card originally hid the camera-age badge, which became misleading once photos appeared, because a snapshot can be stale while the sensor is current. The badge is back on for availability. Note also that these overhead cameras cover more than one bay, so a vehicle visible in frame is not necessarily in *that* bay — the age badge plus the bay label are what make a photo interpretable.
 
 ### Gotchas
 
