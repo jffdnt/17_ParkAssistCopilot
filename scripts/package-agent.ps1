@@ -38,7 +38,7 @@ try {
     if ($content -match '\$\{\{[A-Z0-9_]+\}\}') {
       throw "Unresolved app-package token in $($_.Name): $($Matches[0])"
     }
-    Set-Content -LiteralPath $_.FullName -Value $content -Encoding utf8NoBOM
+    Set-Content -LiteralPath $_.FullName -Value $content -Encoding utf8
   }
 
   Get-ChildItem -LiteralPath $stageDirectory -Filter *.json | ForEach-Object {
