@@ -30,7 +30,13 @@ export default function AvailableSpaces(props: IAvailableSpacesProps): JSX.Eleme
   } else {
     body = (
       <>
-        <BayGrid bays={result.bays} noTelemetryLabel={strings.NoTelemetryLabel} showFeedAge={false} />
+        {/*
+          The camera age matters here now that previews are shown: a snapshot
+          can be hours stale while the sensor reports the space vacant, so a
+          photo containing a car is not a contradiction — it is an out-of-date
+          image. Showing the age lets an operator judge whether to trust it.
+        */}
+        <BayGrid bays={result.bays} noTelemetryLabel={strings.NoTelemetryLabel} />
         {result.hasMore ? (
           <Caption1>
             {result.totalMatches - result.bays.length} {strings.MoreResultsSuffix}
