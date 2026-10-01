@@ -1,6 +1,6 @@
 # ParkAssist Copilot
 
-ParkAssist Copilot is a read-only Microsoft Copilot experience for the **5 Bell** parking garage. It exposes live garage data through a Streamable HTTP MCP server and renders an expressive React + Fluent UI widget inside Microsoft 365 Copilot. The same MCP server can be connected to a Copilot Studio agent and published to Microsoft Teams.
+ParkAssist Copilot is a read-only Microsoft Copilot experience for the **5 Bell** parking garage. One Node/Express service exposes live garage data through Streamable HTTP MCP and authenticated REST endpoints. Copilot Studio uses the MCP route and Adaptive Cards for Teams; the active Microsoft 365 Copilot experience uses the SPFx Copilot Components in `copilotComponent/` for inline React + Fluent UI results.
 
 The implementation was derived from the data sources and bay map used by Power Apps canvas app `d64fefaa-7ac3-4ea8-a823-a27ec0878b50` (`ParkAssist`). The older `12_CopilotWebpart` project informed the Direct Line/Teams requirements, but this repository uses the current MCP Apps pattern instead of embedding a separate SPFx Web Chat surface.
 
@@ -10,23 +10,22 @@ The implementation was derived from the data sources and bay map used by Power A
 | --- | --- | --- |
 | “Which cameras have stale feeds?” | `get-stale-camera-feeds` | Stale/missing bays, timestamps, sensor issues, and short-lived camera previews |
 | “What spaces are available on floor 5?” | `find-available-spaces` | Live vacant, in-service spaces filtered by floor/designation |
-| “Where is plate ABC123?” | `search-license-plate` | Occupied bay matches; partial results are masked |
+| “Where is plate ABC123?” | `search-license-plate` | Occupied bay matches; authorized partial searches return the full matching plate |
 | “How is the garage looking?” | `garage-overview` | Occupancy, availability, out-of-service, and camera-health metrics |
 
 ## Architecture
 
 ```text
-Teams / Microsoft 365 Copilot
-        │
-        ├─ Copilot Studio agent ─ Power Platform MCP connection ─┐
-        │                                                        │
-        └─ Declarative agent ─ MCP plugin + Entra SSO ───────────┤
+Teams ─ Copilot Studio agent ─ Power Platform MCP connection ────┐
+                                                                 │
+Microsoft 365 Copilot ─ SPFx Copilot Components ─ authenticated REST
+                                                                 │
                                                                  ▼
-                      ParkAssist MCP service (Node/Express)
-                       │          │                 │
-                       │          │                 └─ React MCP App resource
-                       │          └─ signed, short-lived image proxy
-                       ▼
+                   ParkAssist service (Node/Express)
+                    │          │                 │
+                    │          │                 └─ React MCP App resource (MCP hosts)
+                    │          └─ signed, short-lived image proxy
+                    ▼
       ParkAssist live API: /bays and /images/{bayId}
                        │
                        └─ optional Microsoft Graph overlay
@@ -53,6 +52,10 @@ Run all checks:
 npm run typecheck
 npm test
 npm run build
+Push-Location copilotComponent
+npm ci
+npm run build
+Pop-Location
 ```
 
 To smoke-test the MCP protocol against a running server:
@@ -68,11 +71,14 @@ Copy `.env.example` to `.env`. Important production settings:
 | Setting | Purpose |
 | --- | --- |
 | `PUBLIC_BASE_URL` | Public HTTPS service origin, without `/mcp` |
+| `CORS_ALLOWED_ORIGINS` | SharePoint origins allowed to call the Copilot Component `/api/*` routes |
 | `PARKASSIST_API_BASE_URL` | Existing live ParkAssist proxy; defaults to the canvas app’s endpoint |
 | `PARKING_GARAGE` | Garage filter; defaults to `5 Bell` |
 | `STALE_AFTER_MINUTES` | Default stale-camera threshold; defaults to `15` |
 | `AUTH_MODE` | `none` for local only, `api-key` for Copilot Studio testing, `entra` for production SSO |
 | `CAMERA_SIGNING_SECRET` | At least 32 random characters used to sign temporary preview URLs |
+| `RATE_LIMIT_WINDOW_SECONDS` / `RATE_LIMIT_MAX_REQUESTS` | Per-replica request safety limit; defaults to 300 requests per minute per client IP |
+| `TRUST_PROXY_HOPS` | Trusted reverse-proxy hops used to resolve client IPs; defaults to `0`, while the Container Apps template sets `1` |
 | `SHAREPOINT_SITE_URL` | Optional `SensorHealth` overlay; unset to disable |
 
 In Azure, `DefaultAzureCredential` lets the service use a managed identity for Microsoft Graph. Grant only the site-scoped permission needed to read `https://castletonstage.sharepoint.com/sites/Development`; do not place production secrets in `.env` or source control.
@@ -89,23 +95,25 @@ docker run --rm -p 3000:3000 --env-file .env parkassist-copilot
 The service exposes:
 
 - `GET /health` — health and configured-space count
+- `GET /ready` — readiness check against the core ParkAssist upstream
 - `POST|GET|DELETE /mcp` — Streamable HTTP MCP endpoint
+- `GET /api/overview|available-spaces|plate-search|stale-feeds` — Entra-protected Copilot Component endpoints
 - `GET /api/cameras/{bayId}?exp=...&sig=...` — signed image proxy
 - `GET /preview?preview=stale` — local visual-QA fixture
 
-Deploy the container to an HTTPS host such as Azure Container Apps. The production service must use `AUTH_MODE=entra` for the Microsoft 365 declarative-agent route. Copilot Studio also supports API-key connections for a limited pilot, but Entra/OAuth is preferred for user attribution and Conditional Access.
+Deploy the container to an HTTPS host such as Azure Container Apps. A production process refuses to start with `AUTH_MODE=none` or with a missing, short, or placeholder camera-signing secret. The deployed Microsoft 365 and Copilot Studio routes use Entra/OAuth for user attribution and Conditional Access.
+
+For repeatable Azure deployment, start with a no-change preview using [deploy-azure.ps1](scripts/deploy-azure.ps1) and the instructions in [infra/README.md](infra/README.md). The flow creates managed identity and Log Analytics, builds an immutable image tag, and configures separate liveness and readiness probes.
+
+Before a release, run `npm run release:check`. Supply the organization-owned publisher/legal URLs through `PUBLISHER_WEBSITE_URL`, `PRIVACY_URL`, and `TERMS_OF_USE_URL`, then run `npm run release:metadata` to update the active Copilot Component manifests.
 
 ## Connect to Copilot Studio and Teams
 
-Follow [copilot-studio-setup.md](docs/copilot-studio-setup.md). It covers the recommended Copilot Studio MCP onboarding wizard, the Power Apps custom-connector fallback, publishing the agent, and personal Teams validation before broader sharing.
+For Teams, follow [copilot-studio-setup.md](docs/copilot-studio-setup.md). It covers the Copilot Studio MCP connection, publishing, and personal validation before broader sharing.
 
-This repository also includes a Microsoft 365 declarative-agent package in `appPackage/`. That route is the one that renders the React MCP App inline in Microsoft 365 Copilot. Copy `env/.env.local.example` to `env/.env.local`, provision the Entra/Teams authentication registration, then use Microsoft 365 Agents Toolkit or:
+For inline cards in Microsoft 365 Copilot, build and deploy the SPFx solution in `copilotComponent/`; its four components call the service's Entra-protected REST endpoints with the signed-in user's delegated token. See [copilotComponent/README.md](copilotComponent/README.md).
 
-```powershell
-./scripts/package-agent.ps1
-```
-
-The source package intentionally contains deployment tokens; the script resolves them into `appPackage/build/appPackage.local.zip` and fails if any token remains.
+`appPackage/` is retained as a legacy declarative-agent/MCP-plugin experiment. Its `OAuthPluginVault` route did not reach the server in this tenant and is not the current deployment target.
 
 Current Microsoft guidance:
 
@@ -129,10 +137,12 @@ See [security.md](docs/security.md) before enabling production access.
 ## Repository map
 
 ```text
-appPackage/              Microsoft 365 declarative-agent package template
+appPackage/              Legacy declarative-agent/MCP-plugin experiment
+copilotComponent/        Active SPFx Copilot Components for Microsoft 365 Copilot
 copilotStudio/           Source-controlled Copilot Studio agent workspace
 connector/               Power Apps custom MCP connector fallback
 docs/                    architecture, security, and setup guidance
+infra/                   Bicep for identity, logs, registry, environment, and Container App
 scripts/                 smoke test, icon generator, package builder
 src/server/              MCP server, auth, live API, Graph, signed images
 src/server/data/         canvas-app-derived 5 Bell bay map

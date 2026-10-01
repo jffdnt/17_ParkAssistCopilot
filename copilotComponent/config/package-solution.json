@@ -3,15 +3,15 @@
   "solution": {
     "name": "ParkAssist Garage Copilot Component",
     "id": "26d40212-4f04-4670-97c4-e70d19457b7c",
-    "version": "1.5.0.0",
+    "version": "1.6.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "developer": {
       "name": "Castleton",
-      "websiteUrl": "https://www.example.com",
-      "privacyUrl": "https://www.example.com/privacy",
-      "termsOfUseUrl": "https://www.example.com/terms",
-      "mpnId": "Undefined-1.24.0-beta.3"
+      "websiteUrl": "https://jffdnt.github.io/parkassist/",
+      "privacyUrl": "https://jffdnt.github.io/parkassist/privacy.html",
+      "termsOfUseUrl": "https://jffdnt.github.io/parkassist/terms.html",
+      "mpnId": "Undefined-1.24.0-beta.5"
     },
     "metadata": {
       "shortDescription": {
@@ -29,7 +29,7 @@
         "title": "ParkAssist Garage Copilot Component Feature",
         "description": "Registers the ParkAssist camera-health Copilot Component and its declarative agent.",
         "id": "d5cf66a6-378f-49fc-a922-e41e25985a33",
-        "version": "1.5.0.0"
+        "version": "1.6.0.0"
       }
     ],
     "webApiPermissionRequests": [

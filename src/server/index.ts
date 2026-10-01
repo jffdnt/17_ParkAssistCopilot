@@ -7,6 +7,14 @@ import { requireMcpAuthorization } from "./auth.js";
 import { config } from "./config.js";
 import { createParkAssistMcpServer } from "./mcp.js";
 import { resolveWidgetHtmlPath } from "./paths.js";
+import { FixedWindowRateLimiter, createRateLimitMiddleware } from "./middleware/rate-limit.js";
+import { requestTelemetry } from "./middleware/request-telemetry.js";
+import {
+  integerList,
+  optionalInteger,
+  plateQuery,
+  RequestValidationError,
+} from "./request-validation.js";
 import { loadBayMap } from "./services/bay-map.js";
 import { CameraUrlSigner } from "./services/camera-signing.js";
 import { ParkingDataService } from "./services/parking-data.js";
@@ -41,9 +49,40 @@ async function main(): Promise<void> {
     host: "0.0.0.0",
     allowedHosts: config.allowedHosts,
   });
+  app.set("trust proxy", config.trustProxyHops);
+  app.disable("x-powered-by");
+  app.use(requestTelemetry);
+
+  const rateLimit = createRateLimitMiddleware(new FixedWindowRateLimiter(
+    config.rateLimitMaxRequests,
+    config.rateLimitWindowSeconds * 1000,
+  ));
+  app.use(["/mcp", "/api", "/ready"], rateLimit);
+  app.use(["/mcp", "/api"], (_request: Request, response: Response, next) => {
+    response.setHeader("Cache-Control", "no-store");
+    response.setHeader("Referrer-Policy", "no-referrer");
+    response.setHeader("X-Content-Type-Options", "nosniff");
+    next();
+  });
 
   app.get("/health", (_request: Request, response: Response) => {
     response.json({ status: "ok", service: "parkassist-copilot", configuredSpaces: mapRows.length });
+  });
+
+  app.get("/ready", async (_request: Request, response: Response) => {
+    const startedAt = performance.now();
+    try {
+      const readiness = await parking.checkReadiness();
+      response.json({
+        status: "ready",
+        service: "parkassist-copilot",
+        ...readiness,
+        durationMs: Math.round((performance.now() - startedAt) * 10) / 10,
+      });
+    } catch (error) {
+      console.error("ParkAssist readiness check failed.", error);
+      response.status(503).json({ status: "unavailable", service: "parkassist-copilot" });
+    }
   });
 
   app.get("/preview", async (_request: Request, response: Response) => {
@@ -92,9 +131,8 @@ async function main(): Promise<void> {
     }
   });
 
-  // The SPFx Copilot Component calls this from the browser on the tenant's SharePoint
-  // origin, so it needs CORS. The MCP transport does not, which is why this is scoped
-  // to /api/stale-feeds rather than applied globally.
+  // The SPFx Copilot Components call /api/* from the tenant's SharePoint origin,
+  // so those routes need CORS. The MCP transport does not.
   const applyCors = (request: Request, response: Response): void => {
     const origin = request.headers.origin;
     if (origin && config.corsAllowedOrigins.includes(origin)) {
@@ -103,24 +141,6 @@ async function main(): Promise<void> {
       response.setHeader("Access-Control-Allow-Headers", "authorization,content-type");
       response.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
     }
-  };
-
-  const optionalInteger = (value: unknown): number | undefined => {
-    const parsed = Number.parseInt(String(value ?? ""), 10);
-    return Number.isFinite(parsed) ? parsed : undefined;
-  };
-
-  /**
-   * Parses `floors=7,8,9`. The Copilot-facing tool schema declares an array,
-   * but a query string carries it as text, so ranges arrive here flattened.
-   */
-  const integerList = (value: unknown): number[] | undefined => {
-    if (typeof value !== "string" || value.trim() === "") return undefined;
-    const floors = value
-      .split(",")
-      .map((part) => Number.parseInt(part.trim(), 10))
-      .filter((part) => Number.isFinite(part));
-    return floors.length > 0 ? floors : undefined;
   };
 
   /**
@@ -144,6 +164,10 @@ async function main(): Promise<void> {
       try {
         response.json(await handler(request));
       } catch (error) {
+        if (error instanceof RequestValidationError) {
+          response.status(error.statusCode).json({ error: error.message });
+          return;
+        }
         console.error(`${label} lookup failed.`, error);
         response.status(502).json({ error: "The garage service is temporarily unavailable." });
       }
@@ -152,10 +176,10 @@ async function main(): Promise<void> {
 
   registerComponentRoute("/api/stale-feeds", "Stale feed", (request) =>
     parking.getStaleCameraFeeds({
-      floor: optionalInteger(request.query.floor),
+      floor: optionalInteger(request.query.floor, "floor", { min: 1, max: 11 }),
       floors: integerList(request.query.floors),
-      thresholdMinutes: optionalInteger(request.query.thresholdMinutes),
-      limit: optionalInteger(request.query.limit) ?? 12,
+      thresholdMinutes: optionalInteger(request.query.thresholdMinutes, "thresholdMinutes", { min: 1, max: 10_080 }),
+      limit: optionalInteger(request.query.limit, "limit", { min: 1, max: 24 }) ?? 12,
       page: 1,
     }),
   );
@@ -164,22 +188,19 @@ async function main(): Promise<void> {
 
   registerComponentRoute("/api/available-spaces", "Available space", (request) =>
     parking.findAvailableSpaces({
-      floor: optionalInteger(request.query.floor),
+      floor: optionalInteger(request.query.floor, "floor", { min: 1, max: 11 }),
       floors: integerList(request.query.floors),
       designation: typeof request.query.designation === "string" ? request.query.designation : undefined,
-      limit: optionalInteger(request.query.limit) ?? 12,
+      limit: optionalInteger(request.query.limit, "limit", { min: 1, max: 24 }) ?? 12,
       page: 1,
       includeImage: true,
     }),
   );
 
   registerComponentRoute("/api/plate-search", "Plate search", async (request) => {
-    const query = typeof request.query.query === "string" ? request.query.query.trim() : "";
-    if (query.length < 3) {
-      throw new Error("Enter at least three letters or numbers from the license plate.");
-    }
+    const query = plateQuery(request.query.query);
     return parking.searchLicensePlate(query, {
-      limit: optionalInteger(request.query.limit) ?? 12,
+      limit: optionalInteger(request.query.limit, "limit", { min: 1, max: 24 }) ?? 12,
       page: 1,
       includeImage: true,
     });

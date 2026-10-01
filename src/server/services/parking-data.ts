@@ -77,6 +77,35 @@ export class ParkingDataService {
     return this.options.mapRows.some((row) => row.bayId === bayId);
   }
 
+  /** Core upstream check used by the unauthenticated platform readiness probe. */
+  public async checkReadiness(): Promise<{ configuredSpaces: number; liveSpaces: number }> {
+    let liveBays = this.cache && this.cache.expiresAt > Date.now()
+      ? this.cache.liveBays
+      : undefined;
+    if (!liveBays) {
+      const response = await this.fetchFn(`${this.options.apiBaseUrl}/bays`, {
+        headers: { Accept: "application/json" },
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (!response.ok) {
+        throw new Error(`ParkAssist readiness request failed (${response.status} ${response.statusText}).`);
+      }
+      liveBays = normalizeBayCollection(await response.json() as unknown);
+      this.cache = {
+        expiresAt: Date.now() + this.options.cacheSeconds * 1000,
+        liveBays,
+      };
+    }
+    const configuredIds = new Set(
+      this.options.mapRows
+        .filter((row) => row.garage === this.options.garage)
+        .map((row) => row.bayId),
+    );
+    const liveSpaces = liveBays.filter((bay) => configuredIds.has(String(bay.id))).length;
+    if (liveSpaces === 0) throw new Error("The ParkAssist upstream returned no configured spaces.");
+    return { configuredSpaces: configuredIds.size, liveSpaces };
+  }
+
   public async getOverview(): Promise<GarageToolResult> {
     const snapshot = await this.getSnapshot(this.options.staleAfterMinutes);
     const result = this.baseResult(
@@ -129,7 +158,12 @@ export class ParkingDataService {
 
     const snapshot = await this.getSnapshot(this.options.staleAfterMinutes);
     const matches = snapshot.bays
-      .filter((bay) => bay.plate && normalizePlate(bay.plate).includes(normalizedQuery))
+      .filter((bay) =>
+        bay.foundInLiveApi &&
+        bay.occupied &&
+        bay.plate &&
+        normalizePlate(bay.plate).includes(normalizedQuery),
+      )
       .sort((left, right) => Number(normalizePlate(left.plate ?? "") === normalizedQuery) - Number(normalizePlate(right.plate ?? "") === normalizedQuery))
       .reverse();
     const paged = this.page(matches, options.limit, options.page);
@@ -140,7 +174,7 @@ export class ParkingDataService {
         ? "No matching occupied spaces were found."
         : `${matches.length} matching vehicle${matches.length === 1 ? "" : "s"} found.`,
       snapshot,
-      paged.items.map((bay) => this.toResult(bay, options.includeImage)),
+      paged.items.map((bay) => this.toResult(bay, options.includeImage, this.options.staleAfterMinutes, true)),
       matches.length,
       { hasMore: paged.hasMore, query: query.trim().toUpperCase() },
     );
@@ -279,7 +313,12 @@ export class ParkingDataService {
     throw lastError instanceof Error ? lastError : new Error("Upstream request failed.");
   }
 
-  private toResult(bay: MergedGarageBay, includeImage = false, staleAfterMinutes = this.options.staleAfterMinutes): GarageBayResult {
+  private toResult(
+    bay: MergedGarageBay,
+    includeImage = false,
+    staleAfterMinutes = this.options.staleAfterMinutes,
+    includePlate = false,
+  ): GarageBayResult {
     return {
       bayId: bay.bayId,
       spaceNumber: bay.spaceNumber,
@@ -288,8 +327,8 @@ export class ParkingDataService {
       occupied: bay.occupied,
       outOfService: bay.outOfService,
       reserved: bay.reserved,
-      plateDisplay: bay.plate ?? undefined,
-      plateConfidence: bay.plateConfidence,
+      plateDisplay: includePlate ? bay.plate ?? undefined : undefined,
+      plateConfidence: includePlate ? bay.plateConfidence : undefined,
       visitEnteredAt: bay.visitEnteredAt,
       thumbnailTimestamp: bay.thumbnailTimestamp,
       thumbnailAgeMinutes: bay.thumbnailAgeMinutes,

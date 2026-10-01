@@ -9,8 +9,8 @@ import { AadHttpClient, type AadHttpClientFactory, type HttpClientResponse } fro
  * config/package-solution.json and must be approved once in
  * SharePoint Admin Center → Advanced → API access.
  */
-const PARKASSIST_RESOURCE_URI = 'api://750929bd-e2b6-4019-838c-365c36cbcb22';
-const PARKASSIST_BASE_URL = 'https://parkassist-mcp.happyground-f091a09b.eastus.azurecontainerapps.io';
+const PARKASSIST_RESOURCE_URI = __PARKASSIST_RESOURCE_URI__;
+const PARKASSIST_BASE_URL = __PARKASSIST_BASE_URL__;
 
 export type FeedState = 'fresh' | 'stale' | 'missing';
 

@@ -63,6 +63,23 @@ describe("parking data tools", () => {
     expect(result.adaptiveCard?.type).toBe("AdaptiveCard");
   });
 
+  it("reports upstream readiness using configured live spaces", async () => {
+    await expect(service.checkReadiness()).resolves.toEqual({ configuredSpaces: 4, liveSpaces: 4 });
+  });
+
+  it("rejects readiness when the upstream returns no configured spaces", async () => {
+    const emptyService = new ParkingDataService({
+      mapRows,
+      apiBaseUrl: "https://garage.example/api",
+      garage: "5 Bell",
+      staleAfterMinutes: 15,
+      cacheSeconds: 30,
+      signer: new CameraUrlSigner("https://mcp.example", "test-secret", 300),
+      fetchFn: async () => new Response("[]", { status: 200 }),
+    });
+    await expect(emptyService.checkReadiness()).rejects.toThrow("no configured spaces");
+  });
+
   it("returns only vacant, usable spaces", async () => {
     const result = await service.findAvailableSpaces({ limit: 12, page: 1 });
     expect(result.totalMatches).toBe(1);
@@ -77,11 +94,36 @@ describe("parking data tools", () => {
     expect(exact.bays[0].plateDisplay).toBe("ABC 123");
   });
 
+  it("does not return a plate from a bay that is not occupied", async () => {
+    const payload = liveBays();
+    payload[0] = {
+      ...payload[0],
+      visit: { plate: { text: "STALE 999", confidence: 0.75 } },
+    };
+    const fetchFn = async () => new Response(JSON.stringify(payload), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+    const scopedService = new ParkingDataService({
+      mapRows,
+      apiBaseUrl: "https://garage.example/api",
+      garage: "5 Bell",
+      staleAfterMinutes: 15,
+      cacheSeconds: 30,
+      signer: new CameraUrlSigner("https://mcp.example", "test-secret", 300),
+      fetchFn,
+    });
+
+    const result = await scopedService.searchLicensePlate("STALE", { limit: 12, page: 1 });
+    expect(result.totalMatches).toBe(0);
+  });
+
   it("returns stale and missing camera feeds with signed previews", async () => {
     const result = await service.getStaleCameraFeeds({ thresholdMinutes: 15, limit: 12, page: 1 });
     expect(result.totalMatches).toBe(2);
     expect(result.bays.map((bay) => bay.bayId).sort()).toEqual(["b2", "b3"]);
     expect(result.bays.every((bay) => bay.imageUrl?.startsWith("https://mcp.example/api/cameras/"))).toBe(true);
+    expect(result.bays.every((bay) => bay.plateDisplay === undefined)).toBe(true);
   });
 
   it("scopes stale feeds to a set of floors and tallies each one", async () => {

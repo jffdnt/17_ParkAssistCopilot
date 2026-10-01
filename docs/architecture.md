@@ -1,5 +1,11 @@
 # Architecture and data semantics
 
+## Delivery paths
+
+- **Teams:** Copilot Studio calls the Streamable HTTP MCP endpoint. The model receives text and structured content, and the host can render the included Adaptive Card.
+- **Microsoft 365 Copilot:** the SPFx solution in `copilotComponent/` supplies four Copilot Components. They call the Entra-protected `/api/*` endpoints with the signed-in user's delegated token and render Fluent UI cards.
+- **Legacy:** `appPackage/` contains the superseded direct MCP-plugin experiment. Its `OAuthPluginVault` flow did not work reliably in this tenant and is not the active route.
+
 ## Source alignment
 
 The ParkAssist canvas app uses two live sources:
@@ -43,10 +49,13 @@ The React widget displays up to 24 results per page. The structured result also 
 - Cached bay data expires after 30 seconds by default.
 - If SharePoint Graph access fails, the core garage result still returns without the health overlay.
 - Empty results are distinguished from upstream service errors.
+- `/health` is a process liveness check; `/ready` verifies that the core ParkAssist source returns configured spaces with a five-second timeout.
+- Protected routes and signed camera URLs have a configurable per-replica fixed-window safety limit. Distributed enforcement still belongs at Azure ingress/WAF.
+- Access logs are structured JSON with a correlation ID, route path, status, and duration. Query strings and bodies are intentionally excluded so plate queries are not logged.
 
 ## UI contract
 
-Each tool returns:
+Each MCP tool returns:
 
 - plain text for model reasoning and accessible fallback;
 - `structuredContent` using `GarageToolResult`;
@@ -54,3 +63,5 @@ Each tool returns:
 - an Adaptive Card object inside the structured result.
 
 The single-file widget is bundled into `dist/widget/mcp-app.html`, uses Fluent UI v9 themes, honors reduced motion, and requests a fresh tool result through the MCP Apps bridge when the user selects Refresh.
+
+The Copilot Components consume the same `GarageToolResult`-shaped JSON through `/api/overview`, `/api/available-spaces`, `/api/plate-search`, and `/api/stale-feeds`. They publish the displayed facts back to Copilot as model context for the next user message.

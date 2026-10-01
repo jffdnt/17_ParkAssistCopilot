@@ -1,6 +1,23 @@
 # Deployment state
 
-Last verified: 2026-09-11
+Workspace reviewed and public health/auth probed: 2026-10-01. Tenant end-to-end verification: 2026-09-12.
+
+## Current route summary
+
+- **Teams:** Copilot Studio → MCP → Adaptive Card. Verified with all four tools.
+- **Microsoft 365 Copilot:** SPFx Copilot Components in `copilotComponent/` → Entra-protected `/api/*` endpoints. Verified with all four tools.
+- **Legacy:** the direct declarative-agent package in `appPackage/` is retained for history but its `OAuthPluginVault` route is not the deployment target.
+- Public probe on 2026-10-01: `/health` returned 200 with 946 configured spaces, OAuth resource metadata returned 200, and unauthenticated `/mcp` returned 401.
+
+## Production hardening rollout (2026-10-01)
+
+- The fail-closed production configuration, plate-data minimization, bounded REST validation, structured privacy-safe access logs, per-replica rate limiting, `/ready`, build-time Copilot Component environment injection, CI coverage, release guardrails, and Bicep deployment path are implemented and locally verified.
+- Azure `what-if` was reviewed before rollout. Image `parkassist-mcp:20261001-hardening1` is live as healthy revision `parkassist-mcp--0000009` at 100% traffic. `/health` returns 946 configured spaces and `/ready` returns 944 live spaces.
+- The Container App now uses user-assigned identity `id-parkassist-prod` for ACR pulls, liveness/readiness probes, secret-backed camera signing, and 1-2 replica HTTP-concurrency scaling. The ACR admin account is disabled.
+- The camera-signing secret was rotated during deployment; previously issued five-minute image links expired naturally.
+- The Copilot Component stack was upgraded and build-tested on `1.24.0-beta.5`. Package `1.6.0.0` is valid, enabled, deployed tenant-wide, and awaiting the final **Add to Teams** agent-catalog synchronization.
+- Publisher metadata now points to the reachable ParkAssist pages at `https://jffdnt.github.io/parkassist/`. The source repository has a private GitHub remote at `https://github.com/jffdnt/17_ParkAssistCopilot`.
+- The release-readiness check passes. The remaining warning is structural: SharePoint Copilot Apps are still a Microsoft preview feature.
 
 ## Power Platform
 
@@ -12,7 +29,7 @@ Last verified: 2026-09-11
 - Agent ID: `d92774c9-4171-446a-9d7c-485bb0b4a850`
 - Agent state reported by `pac copilot list`: Active / Provisioned / Published
 - MCP tool connection: configured (OAuth 2.0 Manual) and verified live — see "Copilot Studio MCP tool connection" below.
-- Teams/Microsoft 365 channel validation: not completed
+- Teams and Microsoft 365 are served by different validated routes; see the current route summary above.
 
 The CLI 2.8.1 `pac copilot init` operation imported the minimal agent solution as part of workspace generation. The checked-in workspace's hardened instructions have since been pushed live (see below).
 
@@ -22,7 +39,7 @@ The CLI 2.8.1 `pac copilot init` operation imported the minimal agent solution a
 - `pac copilot push --project-dir ./copilotStudio/agent` then pushed the hardened instructions (and `gptCapabilities.webBrowsing: false`) live — confirmed via a fresh `pac copilot clone` that the remote `agent.mcs.yml` now matches.
 - **Found a real gap**: the live agent's `aISettings` (`useModelKnowledge`, `isFileAnalysisEnabled`, `isSemanticSearchEnabled`) were all `true`, contradicting the checked-in `settings.mcs.yml` (`false`) and the documented hardened design ("garage facts must come from the four live MCP tools rather than general model knowledge" — this repo's README/copilotStudio README). `pac copilot push` does not touch these fields. Fixed directly in the maker portal: Settings → Generative AI → turned off "Allow ungrounded responses," "Use information from the Web," "File uploads," and "Tenant graph grounding with semantic search." Verified via a fresh `pac copilot clone` that all three `aISettings` flags are now `false`. `copilotStudio/agent/settings.mcs.yml` was updated to match (also picked up a `contentModeration: High` field that Copilot Studio now serializes).
 - **Gotcha**: saving Settings while a concurrent `pac copilot push` (or another save) is in flight fails with `HTTP PreconditionFailed ... ConcurrencyVersionMismatch`. Fix is to click "Discard changes" and redo the edit on the refreshed page — don't retry the same save blindly.
-- The agent was published (see "Published" below) *before* this workspace sync and settings fix, so **a re-publish is needed** for the hardened instructions and disabled knowledge/search/file settings to reach Teams/M365 channels.
+- The agent was initially published before this workspace sync and settings fix, then re-published afterward as recorded in "Published" below.
 
 ## Azure
 
@@ -70,7 +87,7 @@ The CLI 2.8.1 `pac copilot init` operation imported the minimal agent solution a
 - Note: the first provision attempt reused a leftover placeholder value (`00000000-0000-0000-0000-000000000000`) from the example env file instead of generating a new ID — the toolkit only mints a fresh GUID when `TEAMS_APP_ID` is blank. Clearing the field before provisioning fixed it; watch for this if re-provisioning from a copied `.env` file.
 - **Publisher metadata**: `PUBLISHER_EMAIL=jffdnt@gmail.com` (real). `PUBLISHER_WEBSITE_URL`/`PRIVACY_URL`/`TERMS_OF_USE_URL` are still placeholder `example.com` pages — acceptable for internal/personal use, but must be replaced with real reachable pages before Teams Store submission or `atk publish` validation against a public audience.
 - **Manifest version fix**: `atk publish` failed validation with `VersionHasMajorLessThan1` because `appPackage/manifest.json` had `"version": "0.1.0"`. Bumped to `"1.0.0"` (Teams Store rule: major version must be ≥ 1).
-- **Published**: `atk publish --env dev` succeeded — *"[ParkAssist Copilot-dev] is published successfully to Admin Portal"*. The app is now submitted to the tenant's Teams admin catalog (`https://aka.ms/teamsfx-mtac`) and is pending admin approval before it's available org-wide. All 61 Teams Store validation checks passed.
+- **Published**: `atk publish --env dev` succeeded — *"[ParkAssist Copilot-dev] is published successfully to Admin Portal"*. It was pending admin approval at this point in the chronology; approval was completed later as recorded below. All 61 Teams Store validation checks passed.
 
 ## Copilot Studio MCP tool connection — LIVE
 
@@ -88,7 +105,7 @@ The CLI 2.8.1 `pac copilot init` operation imported the minimal agent solution a
   - "Which cameras have stale feeds? Show me the bay previews." → bay IDs, floor, image age listed.
   - "Show available General spaces on floor 5." → 84 results returned.
   - "Find plate ABC123." → correctly reported not found.
-- **2026-09-12**: plate masking was deliberately removed at the user's request (see `src/server/services/parking-data.ts`, `docs/security.md`) — `search-license-plate` and `find-available-spaces` now return the full plate for every match, not just exact ones. Docs, tool descriptions, and the Copilot Studio agent instructions were updated to match; `copilotStudio/agent/agent.mcs.yml` and `appPackage/instruction.txt` still need to be pushed/republished to take effect on the live agent.
+- **2026-09-12**: plate masking was deliberately removed at the user's request. Both partial and exact occupied-bay searches return the full matching plate. The agent was subsequently republished as recorded below. The 2026-10-01 hardening pass further limited machine-readable plate fields to the plate-search result; stale-feed and availability responses omit them.
 - **Gotcha — `az containerapp update --image ...:latest` can silently no-op**: redeploying twice with the `:latest` tag (once for the auth.ts audience fix, once for the plate-masking removal) never created a new revision or replica — `az containerapp revision list` kept showing only `parkassist-mcp--0000001` from the very first deploy, and `az containerapp replica list` confirmed the same pod (`...-zjjhg`, created at the initial deploy time) was still running both times. Container Apps apparently didn't detect a spec change because the image *reference string* was identical, even though the tag's content had changed in ACR. In practice this means **the auth.ts dual-audience fix was never actually live** during the "verified live in the Test pane" round above — that success was solely the `requestedAccessTokenVersion: 2` manifest change taking effect once Entra re-issued a v2-format token. Fix: build and deploy with a unique, immutable tag (e.g. `az acr build --registry acrparkassist6047 --image parkassist-mcp:$(date -u +%Y%m%d-%H%M%S) --image parkassist-mcp:latest .`, then `az containerapp update --image acrparkassist6047.azurecr.io/parkassist-mcp:<that tag>`) and confirm with `az containerapp revision list` / `replica list` that a new revision and replica actually appeared before trusting a deploy. The plate-masking removal was redeployed this way and confirmed live (full plates like `WGF5250` returned in a fresh Test pane conversation) — the auth.ts dual-audience fix rode along in the same image and is now genuinely live too, just untested in isolation.
 - **Gotcha — same-thread chat responses can look stale even when the fix is live**: right after the (eventually real) redeploy, re-asking the same plate question *in the same Test pane conversation* still returned masked-looking plates identical to earlier turns. This was the model echoing its own prior answers for conversational consistency, not a real masking bug — a **new Test session** (the "Start new test session" icon, top-right of the test pane) immediately showed full plates. When verifying a server-side fix in Copilot Studio's test pane, always start a fresh conversation rather than continuing an existing one.
 

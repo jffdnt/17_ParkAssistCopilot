@@ -1,77 +1,42 @@
-# copilot-component
+# ParkAssist Copilot Components
 
-## Summary
+This SPFx 1.24 preview solution is the active Microsoft 365 Copilot presentation layer for ParkAssist. It packages four Copilot Components:
 
-Short summary on functionality and used technologies.
+- garage overview;
+- available spaces;
+- license-plate search;
+- stale or missing camera feeds.
 
-[picture of the solution in action, if possible]
+Each component obtains an Entra delegated token through `AadHttpClient`, calls the matching `/api/*` endpoint on the ParkAssist service, renders a Fluent UI card, and publishes the displayed facts as model context for the user's next message.
 
-## Used SharePoint Framework Version
+## Build
 
-![version](https://img.shields.io/badge/version-1.24.0--beta.3-yellow.svg)
+Use Node.js 22.14.x:
 
-## Applies to
+```powershell
+npm ci
+npm run build
+```
 
-- [SharePoint Framework](https://aka.ms/spfx)
-- [Microsoft 365 tenant](https://docs.microsoft.com/sharepoint/dev/spfx/set-up-your-developer-tenant)
+The default deployment coordinates are in `config/parkassist-environment.json`. For another environment, either set `PARKASSIST_CONFIG_FILE` to a JSON file with `name`, `resourceUri`, and `baseUrl`, or set `PARKASSIST_RESOURCE_URI` and `PARKASSIST_BASE_URL` directly before building. The build rejects non-Entra resource URIs and non-HTTPS service origins.
 
-> Get your own free development tenant by subscribing to [Microsoft 365 developer program](http://aka.ms/o365devprogram)
+The build creates:
 
-## Prerequisites
+- `sharepoint/solution/parkassist-garage-copilot-component.sppkg` for the SharePoint tenant app catalog;
+- `teams/parkassist-garage.zip`, embedded in the solution and synchronized to the tenant agent catalog.
 
-> Any special pre-requisites?
+## Deployment
 
-## Solution
+1. Upload and deploy the `.sppkg` to the tenant app catalog.
+2. Approve `ParkAssist Copilot` / `access_as_user` in SharePoint Admin Center → Advanced → API access.
+3. Select the app in the app catalog, run **Add to all sites**, and then **Add to Teams**.
+4. Add **ParkAssist Garage** from Microsoft 365 Copilot → Agent Store → Built by your org.
 
-| Solution    | Author(s)                                               |
-| ----------- | ------------------------------------------------------- |
-| folder name | Author details (name, company, twitter alias with link) |
+Every package update requires a version bump in both `config/package-solution.json` and `copilot/manifest.json`, followed by **Add to all sites** and **Add to Teams** again. Deployment coordinates are injected at build time; build each environment from its matching configuration file and retain the resulting package as an environment-specific artifact.
 
-## Version history
+## Production prerequisites
 
-| Version | Date             | Comments        |
-| ------- | ---------------- | --------------- |
-| 1.1     | March 10, 2021   | Update comment  |
-| 1.0     | January 29, 2021 | Initial release |
-
-## Disclaimer
-
-**THIS CODE IS PROVIDED _AS IS_ WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING ANY IMPLIED WARRANTIES OF FITNESS FOR A PARTICULAR PURPOSE, MERCHANTABILITY, OR NON-INFRINGEMENT.**
-
----
-
-## Minimal Path to Awesome
-
-- Clone this repository
-- Ensure that you are at the solution folder
-- in the command-line run:
-  - `npm install -g @rushstack/heft`
-  - `npm install`
-  - `heft start`
-
-> Include any additional steps as needed.
-
-Other build commands can be listed using `heft --help`.
-
-## Features
-
-Description of the extension that expands upon high-level summary above.
-
-This extension illustrates the following concepts:
-
-- topic 1
-- topic 2
-- topic 3
-
-> Notice that better pictures and documentation will increase the sample usage and the value you are providing for others. Thanks for your submissions advance.
-
-> Share your web part with others through Microsoft 365 Patterns and Practices program to get visibility and exposure. More details on the community, open-source projects and other activities from http://aka.ms/m365pnp.
-
-## References
-
-- [Getting started with SharePoint Framework](https://docs.microsoft.com/sharepoint/dev/spfx/set-up-your-developer-tenant)
-- [Building for Microsoft teams](https://docs.microsoft.com/sharepoint/dev/spfx/build-for-teams-overview)
-- [Use Microsoft Graph in your solution](https://docs.microsoft.com/sharepoint/dev/spfx/web-parts/get-started/using-microsoft-graph-apis)
-- [Publish SharePoint Framework applications to the Marketplace](https://docs.microsoft.com/sharepoint/dev/spfx/publish-to-marketplace-overview)
-- [Microsoft 365 Patterns and Practices](https://aka.ms/m365pnp) - Guidance, tooling, samples and open-source controls for your Microsoft 365 development
-- [Heft Documentation](https://heft.rushstack.io/)
+- The ParkAssist service must use Entra authentication and allow the tenant SharePoint origin through `CORS_ALLOWED_ORIGINS`.
+- The SharePoint API permission request must be approved.
+- Replace the placeholder developer website, privacy, and terms URLs before public distribution.
+- SPFx 1.24 is still a preview dependency in this solution; validate the supported upgrade path before broad rollout.

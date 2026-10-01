@@ -21,3 +21,25 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - run: npm audit --audit-level=moderate
+      - run: node --check scripts/check-release-readiness.mjs
+      - run: node --check scripts/set-release-metadata.mjs
+      - run: az bicep build --file infra/foundation.bicep --stdout > /dev/null
+      - run: az bicep build --file infra/container-app.bicep --stdout > /dev/null
+      - run: docker build -t parkassist-copilot:ci .
+
+  verify-copilot-component:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: copilotComponent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: copilotComponent/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm audit --audit-level=moderate

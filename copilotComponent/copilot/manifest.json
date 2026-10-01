@@ -1,13 +1,13 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.29/MicrosoftTeams.schema.json",
   "manifestVersion": "1.29",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "id": "6fe70260-1658-4715-9a75-9d49ebcf577c",
   "developer": {
     "name": "Castleton",
-    "websiteUrl": "https://www.example.com",
-    "privacyUrl": "https://www.example.com/privacy",
-    "termsOfUseUrl": "https://www.example.com/terms"
+    "websiteUrl": "https://jffdnt.github.io/parkassist/",
+    "privacyUrl": "https://jffdnt.github.io/parkassist/privacy.html",
+    "termsOfUseUrl": "https://jffdnt.github.io/parkassist/terms.html"
   },
   "icons": {
     "color": "color.png",

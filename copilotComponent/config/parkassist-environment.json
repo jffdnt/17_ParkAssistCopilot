@@ -1,0 +1,5 @@
+{
+  "name": "production",
+  "resourceUri": "api://750929bd-e2b6-4019-838c-365c36cbcb22",
+  "baseUrl": "https://parkassist-mcp.happyground-f091a09b.eastus.azurecontainerapps.io"
+}
