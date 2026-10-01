@@ -1,7 +1,6 @@
 define([], function() {
   return {
     "ExpandButtonLabel": "Expand",
-    "CompactButtonLabel": "Compact",
     "GeneratedPrefix": "generated",
     "LoadingLabel": "Searching plates…",
     "ErrorStatePrefix": "Could not search plates:",

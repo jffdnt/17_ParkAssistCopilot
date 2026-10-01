@@ -3,7 +3,6 @@ import type { IGarageResult } from '../../../services/ParkAssistService';
 
 export interface IPlateSearchStrings {
   ExpandButtonLabel: string;
-  CompactButtonLabel: string;
   GeneratedPrefix: string;
   LoadingLabel: string;
   ErrorStatePrefix: string;
@@ -19,5 +18,8 @@ export interface IPlateSearchProps {
   hostContext: ICopilotComponentHostContext;
   targetDocument: Document | undefined;
   onRequestDisplayMode: (mode: SPCopilotDisplayMode) => Promise<void>;
+  onRefresh: () => Promise<void>;
+  onSummarize: () => Promise<void>;
+  isRefreshing: boolean;
   strings: IPlateSearchStrings;
 }

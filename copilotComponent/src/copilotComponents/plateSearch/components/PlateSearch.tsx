@@ -3,6 +3,7 @@ import { Body1 } from '@fluentui/react-components';
 
 import GarageShell from '../../../components/GarageShell';
 import BayGrid from '../../../components/BayGrid';
+import LiveMetrics from '../../../components/LiveMetrics';
 import type { IPlateSearchProps } from './IPlateSearchProps';
 
 /** Plate-match results for the 5 Bell garage. */
@@ -19,9 +20,19 @@ export default function PlateSearch(props: IPlateSearchProps): JSX.Element {
   if (!result) {
     body = <Body1>{strings.LoadingLabel}</Body1>;
   } else if (result.bays.length === 0) {
-    body = <Body1>{strings.NoMatchLabel}</Body1>;
+    body = (
+      <>
+        <LiveMetrics result={result} />
+        <Body1>{strings.NoMatchLabel}</Body1>
+      </>
+    );
   } else {
-    body = <BayGrid bays={result.bays} noTelemetryLabel={strings.NoTelemetryLabel} showPlates={true} />;
+    body = (
+      <>
+        <LiveMetrics result={result} />
+        <BayGrid bays={result.bays} noTelemetryLabel={strings.NoTelemetryLabel} showPlates={true} />
+      </>
+    );
   }
 
   return (
@@ -32,8 +43,10 @@ export default function PlateSearch(props: IPlateSearchProps): JSX.Element {
       targetDocument={props.targetDocument}
       idPrefix="parkassist-plate-"
       onRequestDisplayMode={props.onRequestDisplayMode}
+      onRefresh={props.onRefresh}
+      onSummarize={props.onSummarize}
+      isRefreshing={props.isRefreshing}
       expandLabel={strings.ExpandButtonLabel}
-      compactLabel={strings.CompactButtonLabel}
       errorMessage={props.errorMessage ? `${strings.ErrorStatePrefix} ${props.errorMessage}` : undefined}
     >
       {body}

@@ -2,7 +2,7 @@
   "$schema": "https://developer.microsoft.com/json-schemas/copilot/declarative-agent/v1.8/schema.json",
   "version": "v1.8",
   "name": "ParkAssist Garage",
-  "description": "Live occupancy, availability, plate lookup, and camera health for the 5 Bell parking garage.",
+  "description": "Chat with the 5 Bell parking garage and open an interactive live dashboard with camera previews when relevant.",
   "instructions": "$[file('instruction.txt')]",
   "conversation_starters": [
     {

@@ -1,13 +1,24 @@
 # Deployment state
 
-Workspace reviewed, public health/auth probed, and tenant end-to-end verified: 2026-10-01.
+Workspace reviewed, public health/auth probed, and tenant deployment in progress: 2026-10-01.
 
 ## Current route summary
 
-- **Teams and Microsoft 365 Copilot:** Copilot Studio → delegated Power Platform MCP connection → same-turn model-visible text/structured content + Adaptive Card. The Microsoft 365 package is installed and its live overview response is verified.
-- **SPFx preview/rollback:** `copilotComponent/` remains deployed for rollback, but it is not the supported route after its next-message context limitation and Microsoft 365 desktop PortableComponent host failure were reproduced.
+- **Microsoft 365 Copilot primary pilot:** SPFx Copilot UX components → delegated REST calls → interactive dashboard, camera-result grids, refresh, narration, and fullscreen UI.
+- **Teams and text fallback:** Copilot Studio → delegated Power Platform MCP connection → same-turn model-visible text/structured content. Its checked-in name is **ParkAssist Garage Text** so users can distinguish it from the interactive pilot.
 - **Legacy:** the direct declarative-agent package in `appPackage/` is retained for history but its `OAuthPluginVault` route is not the deployment target.
 - Public probe on 2026-10-01: `/health` returned 200 with 946 configured spaces, OAuth resource metadata returned 200, and unauthenticated `/mcp` returned 401.
+
+## Interactive pilot rollout (2026-10-01)
+
+- Implemented shared live metrics, camera-result grids, responsive header actions, in-place **Refresh**, context-aware **Summarize**, and fullscreen expansion across all four Copilot UX components.
+- Bumped both the SharePoint solution and declarative-agent manifest to `1.7.0`; the production build, 5 SPFx tests, 31 service/widget tests, TypeScript checks, package validation, root build, and release readiness check pass.
+- Uploaded the generated `.sppkg` over the existing catalog item (source and package retained), deployed it, and confirmed the catalog reports version `1.7.0.0`, Enabled, Valid, and Added to all sites. No old tenant entry or OAuth connection was deleted.
+- Triggered **Add to Teams** from the App Catalog. Microsoft 365 currently exposes both an obsolete `ParkAssist Copilot-dev` entry and the installed **ParkAssist Garage** component agent (`T_0578f3fd-7dba-04a7-45c8-4df50572adc8`). The obsolete entry failed before reaching `/api/overview`; the correct installed entry rendered successfully. Do not use `ParkAssist Copilot-dev` for acceptance.
+- **Interactive acceptance passed.** The overview rendered 946 configured, 944 reporting, 195 available, 700 occupied, 52 out of service, 74% occupancy, 54 missing feeds, and 28 offline sensors. **Refresh** produced a new generated time and new live totals, **Summarize** quoted the published context without another tool call, and **Expand** opened the full content-preview panel.
+- **Camera acceptance passed.** `Which cameras are stale on floors 7-9? Show me the bay previews.` rendered 97 affected spaces, a correct floor breakdown (47/100, 0/110, 50/106), a coverage notice, and 12 signed live camera images.
+- The UI is serving the `1.7.0.0` SharePoint assets, but the host's installed-agent metadata still advertises Teams manifest `1.6.0` and the prior first-turn wording. Re-check agent-catalog propagation later; this does not block the dashboard or images, but the refreshed declarative-agent instructions should eventually replace “card” with “interactive live dashboard.”
+- The Copilot Studio fallback workspace and live agent were renamed to **ParkAssist Garage Text**. Agent `d92774c9-4171-446a-9d7c-485bb0b4a850` was republished successfully at `2026-10-01 18:07:08`; `pac copilot list` now reports the new name with Published / Active / Provisioned state. The previously installed Microsoft 365 channel package may retain its old display name until its channel package is regenerated/reinstalled.
 
 ## Production hardening rollout (2026-10-01)
 
@@ -15,10 +26,10 @@ Workspace reviewed, public health/auth probed, and tenant end-to-end verified: 2
 - Azure `what-if` was reviewed before rollout. Image `parkassist-mcp:20261001-hardening1` is live as healthy revision `parkassist-mcp--0000009` at 100% traffic. `/health` returns 946 configured spaces and `/ready` returns 944 live spaces.
 - The Container App now uses user-assigned identity `id-parkassist-prod` for ACR pulls, liveness/readiness probes, secret-backed camera signing, and 1-2 replica HTTP-concurrency scaling. The ACR admin account is disabled.
 - The camera-signing secret was rotated during deployment; previously issued five-minute image links expired naturally.
-- The Copilot Component stack was upgraded and build-tested on `1.24.0-beta.5`. Package `1.6.0.0` remains valid, enabled, deployed tenant-wide, and synchronized to the tenant agent catalog with **Add to Teams**, but is now retained only for rollback.
+- The Copilot Component stack was upgraded and build-tested on `1.24.0-beta.5`. Package `1.7.0.0` is valid, enabled, deployed tenant-wide, and is the primary Microsoft 365 pilot package while agent-catalog propagation is verified.
 - The Copilot Studio Microsoft 365 channel was activated with **Make agent available in Microsoft 365 Copilot** selected. Package version `1.0.4`, title ID `T_3600a791-cafc-ae46-1d56-4224e22705dd`, was installed for the maker account and verified with a non-sensitive live overview.
 - Publisher metadata now points to the reachable ParkAssist pages at `https://jffdnt.github.io/parkassist/`. The source repository has a private GitHub remote at `https://github.com/jffdnt/17_ParkAssistCopilot`.
-- The release-readiness check passes. The remaining warning is structural: SharePoint Copilot Apps are still a Microsoft preview feature.
+- The release-readiness check passes. The remaining warning is structural: the primary SharePoint Copilot App is still a Microsoft preview feature, so the Copilot Studio fallback remains required.
 
 ## Power Platform
 
@@ -26,24 +37,24 @@ Workspace reviewed, public health/auth probed, and tenant end-to-end verified: 2
 - Existing canvas solution: `5BellParkAssist`
 - Publisher prefix: `fivebell`
 - Copilot solution: `fivebell_ParkAssistCopilot`
-- Copilot Studio agent: `ParkAssist Garage`
+- Copilot Studio fallback agent: `ParkAssist Garage Text`
 - Agent ID: `d92774c9-4171-446a-9d7c-485bb0b4a850`
 - Agent state reported by `pac copilot list`: Active / Provisioned / Published
 - MCP tool connection: replacement persistent OAuth 2.0 Manual connection created for the maker account and verified live — see "Copilot Studio MCP tool connection" below.
-- Teams and Microsoft 365 now use the same supported Copilot Studio/MCP route; see the current route summary above.
+- Teams uses the Copilot Studio/MCP fallback route; Microsoft 365 pilots the SPFx Copilot UX route first.
 
 The CLI 2.8.1 `pac copilot init` operation imported the minimal agent solution as part of workspace generation. The checked-in workspace's hardened instructions have since been pushed live (see below).
 
-## Microsoft 365 route switched to Copilot Studio (2026-10-01) — WORKING
+## Previous Microsoft 365 Copilot Studio route (2026-10-01) — TEXT FALLBACK
 
-- The SPFx agent reproduced two unacceptable first-turn behaviors in the Microsoft 365 desktop client: `updateModelContextAsync` cannot make the card payload available to the current model turn, and the PortableComponent host rendered a SharePoint error surface instead of the ParkAssist card. The agent consequently told the user to inspect a card for numerical details that were not visible.
-- The Copilot Studio agent was renamed to **ParkAssist Garage** and its instructions now require `garage-overview` answers to quote the returned configured-space, occupancy, availability, out-of-service, and camera-health numbers in the same turn. It must never redirect the user to a card or payload for values the tool returned.
+- The earlier SPFx agent reproduced two unacceptable first-turn behaviors in the Microsoft 365 desktop client: `updateModelContextAsync` cannot make the component payload available to the current model turn, and the PortableComponent host rendered a SharePoint error surface instead of the ParkAssist UI. Version `1.7.0` now treats the UI as the first-turn answer and offers a **Summarize** action that explicitly creates the next, context-aware model turn.
+- The Copilot Studio agent instructions require `garage-overview` answers to quote the returned configured-space, occupancy, availability, out-of-service, and camera-health numbers in the same turn. It must never redirect the user to a card or payload for values the tool returned. Its current source name is **ParkAssist Garage Text**.
 - `pac copilot push` and an immutable-ID publish updated agent `d92774c9-4171-446a-9d7c-485bb0b4a850`. The remote record is Active / Provisioned / Published with publish time `2026-10-01T16:47:52Z`.
 - The Microsoft 365 and Microsoft Teams channel had the Microsoft 365 checkbox selected but had never been added. The channel is now active. The generated Microsoft 365 package is version `1.0.4`, title ID `T_3600a791-cafc-ae46-1d56-4224e22705dd`, with agent application ID `27d8b970-fee0-415c-9d8b-acf4705d08d5`.
 - The prior conversation's MCP connection reference was stale and inaccessible. Replacement persistent OAuth connection `bb925b30aeee4cadb9d78dffa35c3d1e`, using `api://750929bd-e2b6-4019-838c-365c36cbcb22/access_as_user`, was created and connected for `jffdnt@Castletonstage.onmicrosoft.com`. The pre-existing user connection `7ad06f52a0e940a7bcf66f98acddda39` also currently reports Connected; it was not deleted.
 - Non-sensitive Copilot Studio acceptance returned live same-turn text: 186 available, 709 occupied, 52 out of service, and 24 stale camera feeds at `2026-10-01 16:58 UTC`.
 - After installation in Microsoft 365 Copilot, the same prompt returned live same-turn text: 195 available, 700 occupied, 52 out of service, 0 stale camera feeds, and 74% occupancy at `2026-10-01 17:00 UTC`. The changing figures are expected point-in-time snapshots and prove the model received the live tool result.
-- The SPFx `1.6.0.0` tenant package was deliberately left deployed in this step. Removing it is a separate retirement action.
+- The SPFx tenant package was deliberately retained and has since been upgraded in place to `1.7.0.0`; removing it is not part of the current plan.
 
 ## Copilot Studio workspace sync (2026-09-12)
 
@@ -142,9 +153,9 @@ Installed **ParkAssist Copilot-dev** from Teams' app store (`Apps → Built for 
 - **Superseded 2026-09-12** — see "M365 Copilot route rebuilt on Copilot Components" below. Rather than keep chasing the `OAuthPluginVault` failure, the M365 route was rebuilt on SPFx Copilot Components, which removes that mechanism entirely. The declarative agent in `appPackage/` is now the legacy path.
 - **Not tried before the rebuild**: testing from the Teams desktop or mobile client instead of the web/`teams.cloud.microsoft` surface; opening a Microsoft support case.
 
-## Historical M365 Copilot route rebuilt on Copilot Components (2026-09-12) — RETAINED FOR ROLLBACK
+## M365 Copilot route rebuilt on Copilot Components (2026-09-12; promoted again 2026-10-01)
 
-The `OAuthPluginVault` + `RemoteMCPServer` route above never reached our server. **SPFx Copilot Components** (SPFx 1.24 preview; called "SharePoint Copilot Apps" in the July preview) replaced it at the time, and the web route was verified end to end. The later Microsoft 365 desktop failure and first-turn limitation caused the 2026-10-01 switch to Copilot Studio. Source remains in `copilotComponent/` for rollback.
+The `OAuthPluginVault` + `RemoteMCPServer` route above never reached our server. **SPFx Copilot Components** (SPFx 1.24 preview; called "SharePoint Copilot Apps" in the July preview) replaced it at the time, and the web route was verified end to end. A later Microsoft 365 desktop host failure temporarily moved the active route to Copilot Studio. Version `1.7.0` promotes the component route again with an explicit dashboard-first first turn and a user-triggered narration follow-up; Copilot Studio is retained as the fallback.
 
 ### Why this fixes it
 
@@ -258,7 +269,7 @@ No SPFx redeploy was needed — this is server-only, and the components do not r
 
 ### Gotchas
 
-- **Copilot Components render only in the Microsoft 365 Copilot UX during public preview.** Microsoft states this in both [Overview of SharePoint Copilot Apps](https://learn.microsoft.com/sharepoint/dev/spfx/copilot/overview-copilot-apps) ("During the public preview, SharePoint Copilot Apps render only in the Microsoft 365 Copilot user experience") and its Known issues ("Copilot UX only … Support for other surfaces and hosting options is in the works"). The supported Teams and Microsoft 365 experience therefore uses Copilot Studio and its Adaptive Cards; the components are rollback-only.
+- **Copilot Components render only in the Microsoft 365 Copilot UX during public preview.** Microsoft states this in both [Overview of SharePoint Copilot Apps](https://learn.microsoft.com/sharepoint/dev/spfx/copilot/overview-copilot-apps) ("During the public preview, SharePoint Copilot Apps render only in the Microsoft 365 Copilot user experience") and its Known issues ("Copilot UX only … Support for other surfaces and hosting options is in the works"). The components are therefore the Microsoft 365 pilot UI, while Copilot Studio remains the Teams and text fallback.
 - **"Add to Teams" in the app catalog does not make the app work in Teams.** It publishes the declarative agent to the tenant agent catalog; per the overview docs, "The label of this button will be updated in a future release to better reflect that it also publishes the agent." It is still the required step, just misleadingly named.
 - **A stripped tool parameter fails silently, so prefer shapes known to survive.** The build logs which keywords it drops (`Stripped unsupported schema keyword(s) … [additionalProperties, $schema]`), but a dropped *parameter* produces no warning at all — the tool is simply called without it, and a missing filter reads as "no filter", which is a wrong answer rather than an error. This is why the SPFx `floors` parameter is a string the component parses rather than an integer array.
 - **`updateModelContextAsync` lands on the *next* user message, not the current turn.** On the first turn the agent said it "returned an interactive component" but could not list details. That is by design — the API docs state each call overwrites the previous context and is sent to the model on the next message. Use `sendFollowUpMessageAsync` if an immediate narrated turn is ever needed.

@@ -30,7 +30,7 @@ try {
 
 const componentPackage = JSON.parse(read("copilotComponent/package.json"));
 if (String(componentPackage.dependencies?.["@microsoft/sp-copilot-component"] ?? "").includes("beta")) {
-  warnings.push("The retained SPFx rollback package still depends on a preview Copilot Component package.");
+  warnings.push("The primary M365 pilot depends on a preview SPFx Copilot Component package; keep the Copilot Studio fallback available.");
 }
 
 for (const warning of warnings) console.warn(`WARN: ${warning}`);

@@ -57,6 +57,13 @@ export default class PlateSearchCopilotComponent extends BaseGarageComponent<IPl
       onRequestDisplayMode: async (mode: SPCopilotDisplayMode) => {
         await this.requestDisplayModeAsync(mode);
       },
+      onRefresh: async () => {
+        await this.refreshAsync();
+      },
+      onSummarize: async () => {
+        await this.requestNarrationAsync();
+      },
+      isRefreshing: this.isRefreshing,
       strings
     });
   }

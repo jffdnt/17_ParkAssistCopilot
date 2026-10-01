@@ -3,7 +3,6 @@ import type { IGarageResult } from '../../../services/ParkAssistService';
 
 export interface IGarageOverviewStrings {
   ExpandButtonLabel: string;
-  CompactButtonLabel: string;
   GeneratedPrefix: string;
   LoadingLabel: string;
   ErrorStatePrefix: string;
@@ -24,5 +23,8 @@ export interface IGarageOverviewProps {
   hostContext: ICopilotComponentHostContext;
   targetDocument: Document | undefined;
   onRequestDisplayMode: (mode: SPCopilotDisplayMode) => Promise<void>;
+  onRefresh: () => Promise<void>;
+  onSummarize: () => Promise<void>;
+  isRefreshing: boolean;
   strings: IGarageOverviewStrings;
 }

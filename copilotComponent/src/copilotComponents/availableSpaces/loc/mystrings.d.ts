@@ -1,6 +1,5 @@
 declare interface IAvailableSpacesCopilotComponentStrings {
   ExpandButtonLabel: string;
-  CompactButtonLabel: string;
   GeneratedPrefix: string;
   LoadingLabel: string;
   ErrorStatePrefix: string;

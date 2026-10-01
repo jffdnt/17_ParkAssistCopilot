@@ -7,7 +7,7 @@ This SPFx 1.24 preview solution is the active Microsoft 365 Copilot presentation
 - license-plate search;
 - stale or missing camera feeds.
 
-Each component obtains an Entra delegated token through `AadHttpClient`, calls the matching `/api/*` endpoint on the ParkAssist service, renders a Fluent UI card, and publishes the displayed facts as model context for the user's next message.
+Each component obtains an Entra delegated token through `AadHttpClient`, calls the matching `/api/*` endpoint on the ParkAssist service, renders a Fluent UI dashboard or camera-result grid, and publishes the displayed facts as model context. **Refresh** reloads the current view in place; **Summarize** asks Copilot to narrate the published context in a follow-up turn.
 
 ## Build
 

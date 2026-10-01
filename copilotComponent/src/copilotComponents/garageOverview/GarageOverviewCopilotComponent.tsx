@@ -48,6 +48,13 @@ export default class GarageOverviewCopilotComponent extends BaseGarageComponent<
       onRequestDisplayMode: async (mode: SPCopilotDisplayMode) => {
         await this.requestDisplayModeAsync(mode);
       },
+      onRefresh: async () => {
+        await this.refreshAsync();
+      },
+      onSummarize: async () => {
+        await this.requestNarrationAsync();
+      },
+      isRefreshing: this.isRefreshing,
       strings
     });
   }

@@ -1,6 +1,6 @@
 # ParkAssist Copilot
 
-ParkAssist Copilot is a read-only Microsoft Copilot experience for the **5 Bell** parking garage. One Node/Express service exposes live garage data through Streamable HTTP MCP and authenticated REST endpoints. The supported Teams and Microsoft 365 Copilot experience is the Copilot Studio agent, which uses the MCP route for same-turn model-visible text, structured content, and Adaptive Cards. The SPFx Copilot Components in `copilotComponent/` are retained as a preview/rollback implementation rather than the primary route.
+ParkAssist Copilot is a read-only Microsoft Copilot experience for the **5 Bell** parking garage. One Node/Express service exposes live garage data through Streamable HTTP MCP and authenticated REST endpoints. The primary Microsoft 365 pilot is the SPFx Copilot UX component in `copilotComponent/`: it renders an interactive dashboard, garage metrics, and camera previews in the conversation. The Copilot Studio agent remains a text-first fallback and the Teams-compatible route while Copilot UX components are in preview.
 
 The implementation was derived from the data sources and bay map used by Power Apps canvas app `d64fefaa-7ac3-4ea8-a823-a27ec0878b50` (`ParkAssist`). The older `12_CopilotWebpart` project informed the Direct Line/Teams requirements, but this repository uses the current MCP Apps pattern instead of embedding a separate SPFx Web Chat surface.
 
@@ -16,12 +16,10 @@ The implementation was derived from the data sources and bay map used by Power A
 ## Architecture
 
 ```text
-Teams + Microsoft 365 Copilot
-        └─ Copilot Studio agent ─ Power Platform MCP connection ─┐
-                                                               │
-SPFx preview/rollback ─ Copilot Components ─ authenticated REST
-                                                               │
-                                                               ▼
+Microsoft 365 Copilot ─ SPFx Copilot UX components ─ authenticated REST ─┐
+                                                                          │
+Teams / text fallback ─ Copilot Studio ─ Power Platform MCP connection ──┤
+                                                                          ▼
                    ParkAssist service (Node/Express)
                     │          │                 │
                     │          │                 └─ React MCP App resource (MCP hosts)
@@ -108,11 +106,11 @@ For repeatable Azure deployment, start with a no-change preview using [deploy-az
 
 Before a release, run `npm run release:check`. Supply the organization-owned publisher/legal URLs through `PUBLISHER_WEBSITE_URL`, `PRIVACY_URL`, and `TERMS_OF_USE_URL`, then run `npm run release:metadata` to update the active Copilot Component manifests.
 
-## Connect to Copilot Studio and Teams
+## Connect to Microsoft 365 Copilot and Teams
 
-For Teams and Microsoft 365 Copilot, follow [copilot-studio-setup.md](docs/copilot-studio-setup.md). It covers the Copilot Studio MCP connection, channel activation, publishing, installation, and personal validation before broader sharing.
+For the primary Microsoft 365 experience, build and deploy [copilotComponent](copilotComponent/README.md). It contains four Copilot UX components that call the Entra-protected REST routes and render live dashboards and camera-result grids.
 
-The retained SPFx preview/rollback solution in `copilotComponent/` has four components that call the service's Entra-protected REST endpoints with the signed-in user's delegated token. Its model context arrives on the next user message, and the PortableComponent host failed in the Microsoft 365 desktop client during acceptance testing. See [copilotComponent/README.md](copilotComponent/README.md).
+For Teams or a text-only recovery path, follow [copilot-studio-setup.md](docs/copilot-studio-setup.md). The fallback agent uses the MCP route for same-turn numerical answers and Adaptive Card data where the host supports it; it does not provide the SPFx dashboard.
 
 `appPackage/` is retained as a legacy declarative-agent/MCP-plugin experiment. Its `OAuthPluginVault` route did not reach the server in this tenant and is not the current deployment target.
 
@@ -139,8 +137,8 @@ See [security.md](docs/security.md) before enabling production access.
 
 ```text
 appPackage/              Legacy declarative-agent/MCP-plugin experiment
-copilotComponent/        Retained SPFx preview/rollback implementation
-copilotStudio/           Source-controlled Copilot Studio agent workspace
+copilotComponent/        Primary M365 pilot: SPFx Copilot UX components
+copilotStudio/           Text-first fallback and Teams route
 connector/               Power Apps custom MCP connector fallback
 docs/                    architecture, security, and setup guidance
 infra/                   Bicep for identity, logs, registry, environment, and Container App

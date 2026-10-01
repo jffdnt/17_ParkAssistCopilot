@@ -2,8 +2,8 @@
 
 ## Delivery paths
 
-- **Teams and Microsoft 365 Copilot:** Copilot Studio calls the Streamable HTTP MCP endpoint through a delegated OAuth connection. The model receives text and structured content in the same turn, and the host can render the included Adaptive Card.
-- **SPFx preview/rollback:** `copilotComponent/` supplies four Copilot Components that call the Entra-protected `/api/*` endpoints with the signed-in user's delegated token. This route is not primary because its model context reaches the next message rather than the current turn, and its PortableComponent host failed in the Microsoft 365 desktop client during acceptance testing.
+- **Microsoft 365 Copilot primary pilot:** `copilotComponent/` supplies four SPFx Copilot UX components that call the Entra-protected `/api/*` endpoints with the signed-in user's delegated token. They render the live dashboard and camera previews inline, can refresh in place, and can send a follow-up prompt to narrate the published dashboard context.
+- **Teams and text fallback:** Copilot Studio calls the Streamable HTTP MCP endpoint through a delegated OAuth connection. The model receives text and structured content in the same turn. This route is deliberately text-first because the Copilot Studio MCP bridge does not render the MCP Apps React UI in the current deployment.
 - **Legacy:** `appPackage/` contains the superseded direct MCP-plugin experiment. Its `OAuthPluginVault` flow did not work reliably in this tenant and is not the active route.
 
 ## Source alignment
@@ -64,4 +64,4 @@ Each MCP tool returns:
 
 The single-file widget is bundled into `dist/widget/mcp-app.html`, uses Fluent UI v9 themes, honors reduced motion, and requests a fresh tool result through the MCP Apps bridge when the user selects Refresh.
 
-The retained Copilot Components consume the same `GarageToolResult`-shaped JSON through `/api/overview`, `/api/available-spaces`, `/api/plate-search`, and `/api/stale-feeds`. They publish the displayed facts back to Copilot as model context for the next user message.
+The Copilot UX components consume the same `GarageToolResult`-shaped JSON through `/api/overview`, `/api/available-spaces`, `/api/plate-search`, and `/api/stale-feeds`. They publish the displayed facts back to Copilot as model context. The host supplies that context on the next model turn; the dashboard's **Summarize** action creates that turn for the user.

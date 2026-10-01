@@ -1,6 +1,5 @@
 declare interface IGarageOverviewCopilotComponentStrings {
   ExpandButtonLabel: string;
-  CompactButtonLabel: string;
   GeneratedPrefix: string;
   LoadingLabel: string;
   ErrorStatePrefix: string;

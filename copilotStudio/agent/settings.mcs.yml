@@ -1,16 +1,24 @@
-displayName: ParkAssist Garage
+displayName: ParkAssist Garage Text
 schemaName: fivebell_ParkAssistCopilot
 accessControlPolicy: GroupMembership
 authenticationMode: Integrated
 authenticationTrigger: Always
 configuration:
+  channels:
+    - channelId: MsTeams
+
+    - channelId: Microsoft365Copilot
+
   settings:
     GenerativeActionsEnabled: true
 
   isAgentConnectable: true
+  publishOnCreate: false
+  publishOnImport: true
   gPTSettings:
     defaultSchemaName: fivebell_ParkAssistCopilot.gpt.default
 
+  isLightweightBot: false
   aISettings:
     useModelKnowledge: false
     isFileAnalysisEnabled: false
@@ -20,6 +28,8 @@ configuration:
 
   recognizer:
     kind: GenerativeAIRecognizer
+
+  deferredProvisioning: false
 
 publishedOn: 2026-10-01T16:47:52.0000000Z
 template: default-2.1.0

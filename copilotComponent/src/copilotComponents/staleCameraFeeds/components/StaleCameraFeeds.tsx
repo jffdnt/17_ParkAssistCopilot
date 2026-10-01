@@ -3,6 +3,7 @@ import { Body1 } from '@fluentui/react-components';
 
 import GarageShell from '../../../components/GarageShell';
 import BayGrid from '../../../components/BayGrid';
+import LiveMetrics from '../../../components/LiveMetrics';
 import ResultSummary from '../../../components/ResultSummary';
 import { describeFloors } from '../../../services/floors';
 import type { IStaleCameraFeedsProps } from './IStaleCameraFeedsProps';
@@ -36,6 +37,7 @@ export default function StaleCameraFeeds(props: IStaleCameraFeedsProps): JSX.Ele
 
     body = (
       <>
+        <LiveMetrics result={result} />
         <ResultSummary
           answer={result.summary}
           floorBreakdown={result.floorBreakdown}
@@ -58,8 +60,10 @@ export default function StaleCameraFeeds(props: IStaleCameraFeedsProps): JSX.Ele
       targetDocument={props.targetDocument}
       idPrefix="parkassist-stale-feeds-"
       onRequestDisplayMode={props.onRequestDisplayMode}
+      onRefresh={props.onRefresh}
+      onSummarize={props.onSummarize}
+      isRefreshing={props.isRefreshing}
       expandLabel={strings.ExpandButtonLabel}
-      compactLabel={strings.CompactButtonLabel}
       errorMessage={props.errorMessage ? `${strings.ErrorStatePrefix} ${props.errorMessage}` : undefined}
     >
       {body}

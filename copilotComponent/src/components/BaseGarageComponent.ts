@@ -16,6 +16,8 @@ export abstract class BaseGarageComponent<TProperties> extends BaseCopilotCompon
   protected result: IGarageResult | undefined;
   /** Message to show when the lookup failed. */
   protected errorMessage: string | undefined;
+  /** True while a user-requested live refresh is in flight. */
+  protected isRefreshing: boolean = false;
 
   private _root: Root | undefined;
 
@@ -33,14 +35,47 @@ export abstract class BaseGarageComponent<TProperties> extends BaseCopilotCompon
   protected abstract renderBody(): React.ReactElement;
 
   protected async onInit(): Promise<void> {
+    await this._loadResult(false);
+  }
+
+  /** Reload the current view without requiring another chat turn. */
+  protected async refreshAsync(): Promise<void> {
+    await this._loadResult(true);
+  }
+
+  /** Ask Copilot to narrate the model context published for this dashboard. */
+  protected async requestNarrationAsync(): Promise<void> {
+    await this.context.copilotBridge.sendFollowUpMessageAsync([
+      {
+        type: 'text',
+        text:
+          'Summarize the live ParkAssist dashboard that just loaded. Quote its current totals, scope, and generated time. ' +
+          'Do not call another tool unless the dashboard context is unavailable.'
+      }
+    ]);
+  }
+
+  private async _loadResult(userInitiated: boolean): Promise<void> {
     const service = new ParkAssistService(this.context.aadHttpClientFactory);
+
+    if (userInitiated) {
+      this.isRefreshing = true;
+      this.errorMessage = undefined;
+      this.render();
+    }
 
     try {
       this.result = await this.loadAsync(service);
+      this.errorMessage = undefined;
       await this._publishModelContext(this.result);
     } catch (error) {
       this.errorMessage = error instanceof Error ? error.message : String(error);
       console.error('ParkAssist lookup failed.', error);
+    } finally {
+      if (userInitiated) {
+        this.isRefreshing = false;
+        this.render();
+      }
     }
   }
 

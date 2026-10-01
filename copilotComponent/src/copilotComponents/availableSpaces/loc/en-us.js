@@ -1,7 +1,6 @@
 define([], function() {
   return {
     "ExpandButtonLabel": "Expand",
-    "CompactButtonLabel": "Compact",
     "GeneratedPrefix": "generated",
     "LoadingLabel": "Finding available spaces…",
     "ErrorStatePrefix": "Could not load available spaces:",

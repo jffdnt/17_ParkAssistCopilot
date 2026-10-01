@@ -1,6 +1,5 @@
 declare interface IStaleCameraFeedsCopilotComponentStrings {
   ExpandButtonLabel: string;
-  CompactButtonLabel: string;
   GeneratedPrefix: string;
   NoTelemetryLabel: string;
   EmptyStateLabel: string;

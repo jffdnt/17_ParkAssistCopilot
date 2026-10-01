@@ -1,6 +1,6 @@
 # Copilot Studio and Teams setup
 
-This guide uses the Power Platform agent as the supported ownership and delivery surface for both Teams and Microsoft 365 Copilot.
+This guide configures the text-first fallback and Teams delivery route. The primary Microsoft 365 pilot is the interactive SPFx package documented in `copilotComponent/README.md`.
 
 ## 1. Deploy the MCP service
 
@@ -65,7 +65,7 @@ Use the contents of `appPackage/instruction.txt` as the agent instruction baseli
 
 For stale feeds, verify the answer includes the space, bay ID, floor, camera age/missing timestamp, and preview. For a partial plate query, verify the full plate is returned for each match.
 
-## 4. Publish to Teams and Microsoft 365 Copilot
+## 4. Publish the fallback to Teams and Microsoft 365 Copilot
 
 1. Publish the agent at least once.
 2. Open **Channels** → **Teams and Microsoft 365 Copilot**.
@@ -77,16 +77,18 @@ For stale feeds, verify the answer includes the space, bay ID, floor, camera age
 
 Teams and Copilot Studio cache published agent versions. If a new build appears stale, start a new conversation, refresh/sign out and back in, and then retest before diagnosing the MCP server.
 
-## 5. Retained SPFx/inline-React preview route
+## 5. Primary Microsoft 365 interactive route
 
-The declarative-agent package in `appPackage/` and the SPFx components in `copilotComponent/` are retained for experiments and rollback. They are not the supported Microsoft 365 Copilot route.
+The SPFx package in `copilotComponent/` is the primary Microsoft 365 pilot because it is the route that can render the dashboard UI and camera previews. Copilot UX components are preview-only and currently render in Microsoft 365 Copilot, not Teams, so retain the Copilot Studio route above as the text/Teams fallback.
 
 1. Register a single-tenant Entra API application and expose `access_as_user`.
 2. In Microsoft 365 Agents Toolkit or Teams Developer Portal, create an Entra SSO authentication registration for the public MCP base URL.
 3. Copy `env/.env.local.example` to `env/.env.local` and enter the Teams app ID, Entra client ID, SSO registration ID, endpoint, publisher URLs, and email.
-4. Run `./scripts/package-agent.ps1` or use the **Provision** lifecycle in Microsoft 365 Agents Toolkit.
-5. Sideload `appPackage/build/appPackage.local.zip` for the pilot.
-6. In Microsoft 365 Copilot, select the agent and ask the stale-camera prompt. Treat this as preview-only validation; the supported Copilot Studio route must still pass the same-turn numerical-answer test.
+4. Build `copilotComponent/` with `npm run build` and upload the generated `.sppkg` to the tenant App Catalog.
+5. Deploy it, select **Add to all sites**, and then select **Add to Teams** to publish the declarative agent to the tenant agent catalog.
+6. In Microsoft 365 Copilot, add **ParkAssist Garage** from **Built by your org** and validate the overview, availability, plate, and stale-camera experiences in new conversations.
+
+The legacy package in `appPackage/` remains source history only; do not sideload it for this pilot.
 
 The package uses an OAuth token-store reference; it never contains a client secret.
 

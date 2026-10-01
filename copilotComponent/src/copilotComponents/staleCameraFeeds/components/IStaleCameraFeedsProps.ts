@@ -3,7 +3,6 @@ import type { IGarageResult } from '../../../services/ParkAssistService';
 
 export interface IStaleCameraFeedsStrings {
   ExpandButtonLabel: string;
-  CompactButtonLabel: string;
   GeneratedPrefix: string;
   NoTelemetryLabel: string;
   EmptyStateLabel: string;
@@ -21,5 +20,8 @@ export interface IStaleCameraFeedsProps {
   hostContext: ICopilotComponentHostContext;
   targetDocument: Document | undefined;
   onRequestDisplayMode: (mode: SPCopilotDisplayMode) => Promise<void>;
+  onRefresh: () => Promise<void>;
+  onSummarize: () => Promise<void>;
+  isRefreshing: boolean;
   strings: IStaleCameraFeedsStrings;
 }

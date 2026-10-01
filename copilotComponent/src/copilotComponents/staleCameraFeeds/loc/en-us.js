@@ -1,7 +1,6 @@
 define([], function() {
   return {
     "ExpandButtonLabel": "Expand",
-    "CompactButtonLabel": "Compact",
     "GeneratedPrefix": "generated",
     "NoTelemetryLabel": "No telemetry",
     "EmptyStateLabel": "Every camera in scope reported within the threshold — nothing to list.",
