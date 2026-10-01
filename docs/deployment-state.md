@@ -2,6 +2,28 @@
 
 Workspace reviewed, public health/auth probed, and tenant deployment in progress: 2026-10-01.
 
+## Dashboard drill-down rollout (1.9.0) — PENDING
+
+Built and verified locally, not yet deployed. The cloud session that built it had no Azure or SharePoint credentials, and its network policy blocked both the ParkAssist upstream and the deployed service.
+
+- **What changed:** each dashboard counter (Available, Occupied, Stale or missing feeds, Out of service) opens a per-floor space map backed by the new authenticated `GET /api/status-detail?status=…` route. The open view is published to Copilot as model context, and an **Ask Copilot** button narrates it. The agent instructions now treat drill-down questions as follow-ups that need no new tool call.
+- **Local verification:** root typecheck, 35 service tests, and build pass; the SPFx production build, lint, and 10 tests pass; `npm run release:check` passes; the UI and the published context were checked in a browser against mock data.
+
+Deploy in this order. The 1.9.0 component calls a route that revision `parkassist-mcp--0000010` does not have, so the server must go first:
+
+1. Server: run `scripts/deploy-azure.ps1` (what-if first, per `infra/README.md`) with a new image tag. Confirm `/health` and `/ready`, and confirm that an unauthenticated `GET /api/status-detail?status=available` returns 401, not 404.
+2. SharePoint: upload `copilotComponent/sharepoint/solution/parkassist-garage-copilot-component.sppkg` (1.9.0.0) over the catalog item, deploy, **Add to all sites**, then **Add to Teams**.
+
+Acceptance, in the installed **ParkAssist Garage** agent (not `ParkAssist Copilot-dev`):
+
+1. "How is the garage looking?" → select **Available**. The drill-down total equals the tile, and the floor bars add up to it.
+2. Select **Occupied** → floor 3 → a space. The camera preview loads and the parked time shows. No plate appears anywhere.
+3. Select **Stale or missing feeds**. The legend splits stale from no telemetry, and the counts add up to the tile.
+4. With a floor and a space type filtered, type "which floor has the most of these?" Copilot should answer from the garage-wide floor counts without calling a tool again.
+5. Select **Ask Copilot**. A follow-up turn describes the total, floor concentration, current filters, and the selected space.
+6. Close the drill-down and ask about the dashboard. The answer reflects the dashboard only.
+7. Select **Refresh** with a drill-down open. It reloads in place and keeps the floor and filters.
+
 ## Hybrid-agent rollout (2026-10-01)
 
 - Added four authenticated, text-only MCP aliases alongside the existing four SPFx Copilot UX tools. The declarative agent now calls both paths for every live query: the text tool supplies reliable same-turn facts and the UX tool supplies the dashboard or camera interface when the preview host is available.
