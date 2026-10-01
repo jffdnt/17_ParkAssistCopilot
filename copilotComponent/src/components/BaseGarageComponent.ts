@@ -1,7 +1,14 @@
+import * as React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { BaseCopilotComponent } from '@microsoft/sp-copilot-component';
 import type { ISPCopilotModelContext } from '@microsoft/sp-copilot-component';
-import { ParkAssistService, type IGarageResult } from '../services/ParkAssistService';
+import {
+  ParkAssistService,
+  type GarageStatus,
+  type IGarageResult,
+  type IStatusDetail
+} from '../services/ParkAssistService';
+import { StatusDetailContext } from './StatusDetailContext';
 
 /**
  * Shared lifecycle for the ParkAssist Copilot Components.
@@ -55,6 +62,10 @@ export abstract class BaseGarageComponent<TProperties> extends BaseCopilotCompon
     ]);
   }
 
+  /** Fetch the bays behind one dashboard tile, for its drill-down. Stable identity across renders. */
+  private readonly _loadStatusDetail = (status: GarageStatus): Promise<IStatusDetail> =>
+    new ParkAssistService(this.context.aadHttpClientFactory).getStatusDetail(status);
+
   private async _loadResult(userInitiated: boolean): Promise<void> {
     const service = new ParkAssistService(this.context.aadHttpClientFactory);
 
@@ -92,7 +103,9 @@ export abstract class BaseGarageComponent<TProperties> extends BaseCopilotCompon
     if (!this._root) {
       this._root = createRoot(this.context.domElement);
     }
-    this._root.render(this.renderBody());
+    this._root.render(
+      React.createElement(StatusDetailContext.Provider, { value: this._loadStatusDetail }, this.renderBody())
+    );
   }
 
   protected async onTeardown(): Promise<void> {

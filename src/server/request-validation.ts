@@ -1,3 +1,5 @@
+import { GARAGE_STATUSES, type GarageStatus } from "../shared/contracts.js";
+
 export class RequestValidationError extends Error {
   public readonly statusCode = 400;
 
@@ -55,4 +57,11 @@ export function plateQuery(value: unknown): string {
     throw new RequestValidationError("Enter between 3 and 16 letters or numbers from the license plate.");
   }
   return query;
+}
+
+export function garageStatus(value: unknown): GarageStatus {
+  if (typeof value === "string" && (GARAGE_STATUSES as readonly string[]).includes(value)) {
+    return value as GarageStatus;
+  }
+  throw new RequestValidationError(`status must be one of: ${GARAGE_STATUSES.join(", ")}.`);
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  garageStatus,
   integerList,
   optionalInteger,
   plateQuery,
@@ -23,5 +24,11 @@ describe("component REST request validation", () => {
     expect(plateQuery(" AB-123 ")).toBe("AB-123");
     expect(() => plateQuery("---")).toThrow(RequestValidationError);
     expect(() => plateQuery("A".repeat(17))).toThrow(RequestValidationError);
+  });
+
+  it("accepts only the four dashboard statuses", () => {
+    expect(garageStatus("stale-or-missing")).toBe("stale-or-missing");
+    expect(() => garageStatus("reserved")).toThrow(RequestValidationError);
+    expect(() => garageStatus(undefined)).toThrow("status must be one of");
   });
 });

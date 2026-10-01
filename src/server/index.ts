@@ -10,6 +10,7 @@ import { resolveWidgetHtmlPath } from "./paths.js";
 import { FixedWindowRateLimiter, createRateLimitMiddleware } from "./middleware/rate-limit.js";
 import { requestTelemetry } from "./middleware/request-telemetry.js";
 import {
+  garageStatus,
   integerList,
   optionalInteger,
   plateQuery,
@@ -185,6 +186,11 @@ async function main(): Promise<void> {
   );
 
   registerComponentRoute("/api/overview", "Garage overview", () => parking.getOverview());
+
+  // Drill-down behind each dashboard tile: every bay that tile counts, by floor.
+  registerComponentRoute("/api/status-detail", "Status detail", (request) =>
+    parking.getStatusDetail(garageStatus(request.query.status)),
+  );
 
   registerComponentRoute("/api/available-spaces", "Available space", (request) =>
     parking.findAvailableSpaces({

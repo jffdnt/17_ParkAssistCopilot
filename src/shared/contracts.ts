@@ -91,3 +91,52 @@ export interface GarageToolResult {
   };
   adaptiveCard?: Record<string, unknown>;
 }
+
+/**
+ * The four dashboard counters a user can drill into. Each one names exactly the
+ * bays its metric tile counts, so a drill-down always adds up to the tile.
+ */
+export type GarageStatus = "available" | "occupied" | "stale-or-missing" | "out-of-service";
+
+export const GARAGE_STATUSES: readonly GarageStatus[] = [
+  "available",
+  "occupied",
+  "stale-or-missing",
+  "out-of-service",
+];
+
+/** One space in a status drill-down. Plates are deliberately never included. */
+export interface GarageStatusSpace {
+  bayId: string;
+  spaceNumber: string;
+  designation: string;
+  reserved: boolean;
+  feedState: FeedState;
+  thumbnailAgeMinutes?: number;
+  /** Minutes since the current visit started; occupied spaces only. */
+  parkedMinutes?: number;
+  /** Signed, short-lived camera preview, loaded only when a space is opened. */
+  imageUrl?: string;
+  health?: HealthAnnotation;
+}
+
+export interface GarageStatusFloor {
+  floor: number;
+  /** Bays on this floor in the bay map. */
+  configured: number;
+  spaces: GarageStatusSpace[];
+}
+
+/**
+ * Every bay in one status, grouped by floor. Unpaged on purpose: the drill-down
+ * is a map of the whole garage, and a single page would misstate every floor.
+ * Floors with no matching bays are included with an empty `spaces` list.
+ */
+export interface GarageStatusDetail {
+  status: GarageStatus;
+  garage: string;
+  generatedAt: string;
+  staleAfterMinutes: number;
+  total: number;
+  floors: GarageStatusFloor[];
+}
