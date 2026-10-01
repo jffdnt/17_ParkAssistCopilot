@@ -1,6 +1,6 @@
 # Deployment state
 
-Workspace reviewed and public health/auth probed: 2026-10-01. Tenant end-to-end verification: 2026-09-12.
+Workspace reviewed, public health/auth probed, and tenant end-to-end verified: 2026-10-01.
 
 ## Current route summary
 
@@ -15,7 +15,7 @@ Workspace reviewed and public health/auth probed: 2026-10-01. Tenant end-to-end 
 - Azure `what-if` was reviewed before rollout. Image `parkassist-mcp:20261001-hardening1` is live as healthy revision `parkassist-mcp--0000009` at 100% traffic. `/health` returns 946 configured spaces and `/ready` returns 944 live spaces.
 - The Container App now uses user-assigned identity `id-parkassist-prod` for ACR pulls, liveness/readiness probes, secret-backed camera signing, and 1-2 replica HTTP-concurrency scaling. The ACR admin account is disabled.
 - The camera-signing secret was rotated during deployment; previously issued five-minute image links expired naturally.
-- The Copilot Component stack was upgraded and build-tested on `1.24.0-beta.5`. Package `1.6.0.0` is valid, enabled, deployed tenant-wide, and awaiting the final **Add to Teams** agent-catalog synchronization.
+- The Copilot Component stack was upgraded and build-tested on `1.24.0-beta.5`. Package `1.6.0.0` is valid, enabled, deployed tenant-wide, and synchronized to the tenant agent catalog with **Add to Teams**. A non-sensitive Microsoft 365 Copilot acceptance test rendered the live garage-overview card (946 configured spaces) without a plate lookup or camera-image access.
 - Publisher metadata now points to the reachable ParkAssist pages at `https://jffdnt.github.io/parkassist/`. The source repository has a private GitHub remote at `https://github.com/jffdnt/17_ParkAssistCopilot`.
 - The release-readiness check passes. The remaining warning is structural: SharePoint Copilot Apps are still a Microsoft preview feature.
 
