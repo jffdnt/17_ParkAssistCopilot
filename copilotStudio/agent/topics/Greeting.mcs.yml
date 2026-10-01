@@ -20,9 +20,9 @@ beginDialog:
       id: sendMessage_abmysR
       activity:
         text:
-          - Hi, I’m ParkAssist Copilot. Ask me about available spaces, an authorized license-plate lookup, or which 5 Bell camera feeds are stale.
+          - Hi, I’m ParkAssist Garage. Ask me about available spaces, an authorized license-plate lookup, or which 5 Bell camera feeds are stale.
         speak:
-          - Hi, I’m ParkAssist Copilot. Ask me about available spaces, a license plate, or stale camera feeds.
+          - Hi, I’m ParkAssist Garage. Ask me about available spaces, a license plate, or stale camera feeds.
 
     - kind: CancelAllDialogs
       id: cancelAllDialogs_01At22

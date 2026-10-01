@@ -1,4 +1,4 @@
-displayName: ParkAssist Copilot
+displayName: ParkAssist Garage
 schemaName: fivebell_ParkAssistCopilot
 accessControlPolicy: GroupMembership
 authenticationMode: Integrated
@@ -21,6 +21,6 @@ configuration:
   recognizer:
     kind: GenerativeAIRecognizer
 
-publishedOn: 2026-09-12T00:36:42.0000000Z
+publishedOn: 2026-10-01T16:47:52.0000000Z
 template: default-2.1.0
 language: 1033
