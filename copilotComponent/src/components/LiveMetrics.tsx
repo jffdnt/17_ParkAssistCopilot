@@ -9,7 +9,7 @@ import {
   tokens
 } from '@fluentui/react-components';
 import type { GarageStatus, IGarageResult } from '../services/ParkAssistService';
-import { StatusDetailContext } from './StatusDetailContext';
+import { DrilldownHostContext } from './DrilldownHost';
 import StatusDrilldown from './StatusDrilldown';
 
 const useStyles = makeStyles({
@@ -72,12 +72,12 @@ const useStyles = makeStyles({
 
 /**
  * Shared dashboard metrics used by every conversational result view. When a
- * StatusDetailContext loader is available each counter is a button that opens
+ * DrilldownHostContext is available each counter is a button that opens
  * the spaces behind it.
  */
 export default function LiveMetrics({ result }: { result: IGarageResult }): JSX.Element {
   const styles = useStyles();
-  const loadDetail = React.useContext(StatusDetailContext);
+  const drilldownHost = React.useContext(DrilldownHostContext);
   const [openStatus, setOpenStatus] = React.useState<GarageStatus | undefined>(undefined);
   const metrics = result.metrics;
   const occupancy = Math.max(0, Math.min(100, metrics.occupancyPercent ?? 0));
@@ -115,7 +115,7 @@ export default function LiveMetrics({ result }: { result: IGarageResult }): JSX.
       </div>
       <div className={styles.grid}>
         {cards.map((card) => {
-          if (!loadDetail) {
+          if (!drilldownHost) {
             return (
               <Card key={card.label} className={styles.metric}>
                 <Title2 className={card.tone}>{card.value}</Title2>
@@ -147,16 +147,16 @@ export default function LiveMetrics({ result }: { result: IGarageResult }): JSX.
           );
         })}
       </div>
-      {loadDetail && !openCard ? (
-        <Caption1 className={styles.hint}>Select a number to see the spaces behind it.</Caption1>
+      {drilldownHost && !openCard ? (
+        <Caption1 className={styles.hint}>Select a number to see the spaces behind it, then ask Copilot about them.</Caption1>
       ) : undefined}
-      {loadDetail && openCard ? (
+      {drilldownHost && openCard ? (
         <div id={drilldownId}>
           <StatusDrilldown
             key={openCard.status}
             status={openCard.status}
             label={openCard.label}
-            load={loadDetail}
+            host={drilldownHost}
             refreshKey={result.generatedAt}
             onClose={() => setOpenStatus(undefined)}
           />

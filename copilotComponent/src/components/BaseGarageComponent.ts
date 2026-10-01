@@ -2,13 +2,12 @@ import * as React from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { BaseCopilotComponent } from '@microsoft/sp-copilot-component';
 import type { ISPCopilotModelContext } from '@microsoft/sp-copilot-component';
-import {
-  ParkAssistService,
-  type GarageStatus,
-  type IGarageResult,
-  type IStatusDetail
-} from '../services/ParkAssistService';
-import { StatusDetailContext } from './StatusDetailContext';
+import { ParkAssistService, type IGarageResult } from '../services/ParkAssistService';
+import { DrilldownHostContext, type IDrilldownHost } from './DrilldownHost';
+import type { IDrilldownContext } from './drilldownModel';
+
+/** Filter clicks arrive in bursts; publish once the user settles. */
+const DRILLDOWN_PUBLISH_DELAY_MS = 400;
 
 /**
  * Shared lifecycle for the ParkAssist Copilot Components.
@@ -27,6 +26,10 @@ export abstract class BaseGarageComponent<TProperties> extends BaseCopilotCompon
   protected isRefreshing: boolean = false;
 
   private _root: Root | undefined;
+  /** What the open drill-down shows, published alongside the dashboard facts. */
+  private _drilldown: IDrilldownContext | undefined;
+  private _drilldownTimer: number | undefined;
+  private _isTornDown: boolean = false;
 
   /** Call the endpoint this component is backed by. */
   protected abstract loadAsync(service: ParkAssistService): Promise<IGarageResult>;
@@ -62,9 +65,47 @@ export abstract class BaseGarageComponent<TProperties> extends BaseCopilotCompon
     ]);
   }
 
-  /** Fetch the bays behind one dashboard tile, for its drill-down. Stable identity across renders. */
-  private readonly _loadStatusDetail = (status: GarageStatus): Promise<IStatusDetail> =>
-    new ParkAssistService(this.context.aadHttpClientFactory).getStatusDetail(status);
+  /** Ask Copilot to describe the drill-down on screen, from the context just published. */
+  protected async requestDrilldownNarrationAsync(): Promise<void> {
+    await this._flushDrilldownContext();
+    await this.context.copilotBridge.sendFollowUpMessageAsync([
+      {
+        type: 'text',
+        text:
+          'Describe the ParkAssist drill-down I am looking at. Lead with the total and where those spaces are ' +
+          'concentrated by floor, call out anything notable, and mention my current filters and selected space if ' +
+          'there is one. Use the drill-down context; do not call another tool.'
+      }
+    ]);
+  }
+
+  /** Drill-down callbacks for the React tree. One object, so its identity is stable across renders. */
+  private readonly _drilldownHost: IDrilldownHost = {
+    load: (status) => new ParkAssistService(this.context.aadHttpClientFactory).getStatusDetail(status),
+    publishView: (view) => {
+      this._drilldown = view;
+      this._clearDrilldownTimer();
+      this._drilldownTimer = window.setTimeout(() => {
+        this._drilldownTimer = undefined;
+        this._publishCurrentContext().catch(() => undefined);
+      }, DRILLDOWN_PUBLISH_DELAY_MS);
+    },
+    askAboutView: () => this.requestDrilldownNarrationAsync()
+  };
+
+  /** Publish a pending drill-down update now, so a follow-up message sees it. */
+  private async _flushDrilldownContext(): Promise<void> {
+    if (this._drilldownTimer === undefined) return;
+    this._clearDrilldownTimer();
+    await this._publishCurrentContext();
+  }
+
+  private _clearDrilldownTimer(): void {
+    if (this._drilldownTimer !== undefined) {
+      window.clearTimeout(this._drilldownTimer);
+      this._drilldownTimer = undefined;
+    }
+  }
 
   private async _loadResult(userInitiated: boolean): Promise<void> {
     const service = new ParkAssistService(this.context.aadHttpClientFactory);
@@ -78,7 +119,7 @@ export abstract class BaseGarageComponent<TProperties> extends BaseCopilotCompon
     try {
       this.result = await this.loadAsync(service);
       this.errorMessage = undefined;
-      await this._publishModelContext(this.result);
+      await this._publishCurrentContext();
     } catch (error) {
       this.errorMessage = error instanceof Error ? error.message : String(error);
       console.error('ParkAssist lookup failed.', error);
@@ -90,9 +131,23 @@ export abstract class BaseGarageComponent<TProperties> extends BaseCopilotCompon
     }
   }
 
-  private async _publishModelContext(result: IGarageResult): Promise<void> {
+  /**
+   * The host keeps only the latest model context, so the dashboard facts and
+   * the open drill-down are always published together: opening a drill-down
+   * must not make Copilot forget the dashboard, and vice versa.
+   */
+  private async _publishCurrentContext(): Promise<void> {
+    if (!this.result || this._isTornDown) return;
+    const dashboard = this.buildModelContext(this.result);
+    const drilldown = this._drilldown;
+    const context: ISPCopilotModelContext = drilldown
+      ? {
+          content: [...(dashboard.content ?? []), { type: 'text', text: drilldown.text }],
+          structuredContent: { ...(dashboard.structuredContent ?? {}), drilldown: drilldown.structured }
+        }
+      : dashboard;
     try {
-      await this.context.copilotBridge.updateModelContextAsync(this.buildModelContext(result));
+      await this.context.copilotBridge.updateModelContextAsync(context);
     } catch (error) {
       // Model context is an enhancement, never a reason to fail the render.
       console.warn('Could not publish ParkAssist model context.', error);
@@ -104,11 +159,13 @@ export abstract class BaseGarageComponent<TProperties> extends BaseCopilotCompon
       this._root = createRoot(this.context.domElement);
     }
     this._root.render(
-      React.createElement(StatusDetailContext.Provider, { value: this._loadStatusDetail }, this.renderBody())
+      React.createElement(DrilldownHostContext.Provider, { value: this._drilldownHost }, this.renderBody())
     );
   }
 
   protected async onTeardown(): Promise<void> {
+    this._isTornDown = true;
+    this._clearDrilldownTimer();
     this._root?.unmount();
     this._root = undefined;
   }

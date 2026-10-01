@@ -12,9 +12,21 @@ import {
   mergeClasses,
   tokens
 } from '@fluentui/react-components';
-import { Dismiss20Regular } from '@fluentui/react-icons';
+import { Chat20Regular, Dismiss20Regular } from '@fluentui/react-icons';
 import type { GarageStatus, IStatusDetail, IStatusSpace } from '../services/ParkAssistService';
-import type { StatusDetailLoader } from './StatusDetailContext';
+import type { IDrilldownHost } from './DrilldownHost';
+import {
+  ALL_FLOORS,
+  applyDrilldownFilters,
+  buildDrilldownContext,
+  categoriesFor,
+  categoryOf,
+  describeSpace,
+  formatDuration,
+  tileNote,
+  type IDrilldownSelection,
+  type Tone
+} from './drilldownModel';
 
 /** Griffel rejects the `border-color` shorthand; one colour on three sides, a stripe on the left. */
 function edgeColors(edge: string, stripe: string): Record<string, string> {
@@ -36,6 +48,11 @@ const useStyles = makeStyles({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     gap: tokens.spacingHorizontalS
+  },
+  headerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalXXS
   },
   header: {
     display: 'flex',
@@ -243,124 +260,27 @@ const useStyles = makeStyles({
   fillDanger: { backgroundColor: tokens.colorPaletteRedBorder2 }
 });
 
-type Tone = 'success' | 'brand' | 'teal' | 'marigold' | 'warning' | 'danger';
-
-/** A legend entry: one way a tile in this drill-down can be coloured. */
-interface ICategory {
-  key: string;
-  label: string;
-  tone: Tone;
-}
-
-/**
- * How each status is broken down visually. Every space falls in exactly one
- * category, so the legend counts always add up to the total.
- */
-function categoriesFor(status: GarageStatus): ICategory[] {
-  switch (status) {
-    case 'available':
-      return [{ key: 'available', label: 'Ready to park', tone: 'success' }];
-    case 'occupied':
-      return [
-        { key: 'lt1h', label: 'Under 1h', tone: 'teal' },
-        { key: '1to4h', label: '1–4h', tone: 'brand' },
-        { key: '4to12h', label: '4–12h', tone: 'marigold' },
-        { key: '12h', label: '12h+', tone: 'warning' },
-        { key: 'unknown', label: 'Entry time unknown', tone: 'brand' }
-      ];
-    case 'stale-or-missing':
-      return [
-        { key: 'stale', label: 'Stale feed', tone: 'warning' },
-        { key: 'missing', label: 'No telemetry', tone: 'danger' }
-      ];
-    case 'out-of-service':
-      return [{ key: 'out-of-service', label: 'Out of service', tone: 'danger' }];
-  }
-}
-
-function categoryOf(status: GarageStatus, space: IStatusSpace): string {
-  switch (status) {
-    case 'available':
-      return 'available';
-    case 'occupied': {
-      const minutes = space.parkedMinutes;
-      if (minutes === undefined) return 'unknown';
-      if (minutes < 60) return 'lt1h';
-      if (minutes < 240) return '1to4h';
-      if (minutes < 720) return '4to12h';
-      return '12h';
-    }
-    case 'stale-or-missing':
-      return space.feedState === 'missing' ? 'missing' : 'stale';
-    case 'out-of-service':
-      return 'out-of-service';
-  }
-}
-
-/** Compact duration: "45m", "3h 10m", "2d 4h". */
-export function formatDuration(minutes: number): string {
-  const rounded = Math.max(0, Math.round(minutes));
-  if (rounded < 60) return `${rounded}m`;
-  if (rounded < 1440) {
-    const remainder = rounded % 60;
-    return remainder === 0 ? `${Math.floor(rounded / 60)}h` : `${Math.floor(rounded / 60)}h ${remainder}m`;
-  }
-  const hours = Math.floor((rounded % 1440) / 60);
-  return hours === 0 ? `${Math.floor(rounded / 1440)}d` : `${Math.floor(rounded / 1440)}d ${hours}h`;
-}
-
-/** The short second line on a tile: what an operator scans for in this view. */
-function tileNote(status: GarageStatus, space: IStatusSpace): string {
-  switch (status) {
-    case 'occupied':
-      return space.parkedMinutes === undefined ? '—' : formatDuration(space.parkedMinutes);
-    case 'stale-or-missing':
-      return space.feedState === 'missing' || space.thumbnailAgeMinutes === undefined
-        ? 'none'
-        : formatDuration(space.thumbnailAgeMinutes);
-    case 'out-of-service':
-      return space.health?.issueType ?? space.designation;
-    default:
-      return space.designation;
-  }
-}
-
-function describeSpace(status: GarageStatus, space: IStatusSpace, floor: number): string {
-  const parts = [`Space ${space.spaceNumber}`, `floor ${floor}`, space.designation];
-  if (status === 'occupied' && space.parkedMinutes !== undefined) {
-    parts.push(`parked ${formatDuration(space.parkedMinutes)}`);
-  }
-  if (status === 'stale-or-missing') {
-    parts.push(
-      space.feedState === 'missing' || space.thumbnailAgeMinutes === undefined
-        ? 'no camera telemetry'
-        : `camera ${formatDuration(space.thumbnailAgeMinutes)} old`
-    );
-  }
-  if (space.health?.issueType) parts.push(space.health.issueType);
-  return parts.join(', ');
-}
-
 export interface IStatusDrilldownProps {
   status: GarageStatus;
   /** The tile label, e.g. "Available". */
   label: string;
-  load: StatusDetailLoader;
+  host: IDrilldownHost;
   /** Changes when the dashboard refreshes, so the drill-down reloads with it. */
   refreshKey: string;
   onClose: () => void;
 }
 
-const ALL_FLOORS = 0;
-
 /**
  * The bays behind one dashboard tile, laid out as a garage map: a per-floor
  * bar list to pick a floor, then every matching space as a tile, coloured by
  * what matters for that status. Picking a tile opens its camera preview.
+ * Whatever is on screen is also published to Copilot, so the user can ask
+ * about it in chat.
  */
 export default function StatusDrilldown(props: IStatusDrilldownProps): JSX.Element {
   const styles = useStyles();
-  const { status, label, load, refreshKey, onClose } = props;
+  const { status, label, host, refreshKey, onClose } = props;
+  const { load, publishView, askAboutView } = host;
 
   const [detail, setDetail] = React.useState<IStatusDetail | undefined>(undefined);
   const [error, setError] = React.useState<string | undefined>(undefined);
@@ -368,7 +288,8 @@ export default function StatusDrilldown(props: IStatusDrilldownProps): JSX.Eleme
   const [floor, setFloor] = React.useState<number>(ALL_FLOORS);
   const [hidden, setHidden] = React.useState<ReadonlySet<string>>(new Set());
   const [designation, setDesignation] = React.useState<string | undefined>(undefined);
-  const [selected, setSelected] = React.useState<{ space: IStatusSpace; floor: number } | undefined>(undefined);
+  const [selected, setSelected] = React.useState<IDrilldownSelection | undefined>(undefined);
+  const [isAsking, setIsAsking] = React.useState(false);
 
   // The parent keys this component by status, so switching tiles starts clean;
   // a dashboard refresh reloads in place and keeps the floor and filters.
@@ -396,6 +317,21 @@ export default function StatusDrilldown(props: IStatusDrilldownProps): JSX.Eleme
       cancelled = true;
     };
   }, [status, refreshKey, attempt, load]);
+
+  // Keep Copilot's view of the drill-down in step with the screen.
+  React.useEffect(() => {
+    if (detail) publishView(buildDrilldownContext(detail, label, { floor, designation, hidden }, selected));
+  }, [detail, label, floor, designation, hidden, selected, publishView]);
+
+  // Closing the drill-down (or switching tiles, which remounts it) withdraws it.
+  React.useEffect(() => () => publishView(undefined), [publishView]);
+
+  const ask = (): void => {
+    setIsAsking(true);
+    askAboutView()
+      .catch((caught: unknown) => console.error('Drill-down narration request failed.', caught))
+      .then(() => setIsAsking(false), () => setIsAsking(false));
+  };
 
   const categories = categoriesFor(status);
   const toneClass: Record<Tone, string> = {
@@ -436,12 +372,24 @@ export default function StatusDrilldown(props: IStatusDrilldownProps): JSX.Eleme
             : 'Loading spaces…'}
         </Caption1>
       </div>
-      <Button
-        appearance="subtle"
-        icon={<Dismiss20Regular />}
-        aria-label={`Close ${label.toLowerCase()} details`}
-        onClick={onClose}
-      />
+      <div className={styles.headerActions}>
+        {detail ? (
+          <Button
+            appearance="subtle"
+            icon={isAsking ? <Spinner size="tiny" /> : <Chat20Regular />}
+            disabled={isAsking}
+            onClick={ask}
+          >
+            Ask Copilot
+          </Button>
+        ) : undefined}
+        <Button
+          appearance="subtle"
+          icon={<Dismiss20Regular />}
+          aria-label={`Close ${label.toLowerCase()} details`}
+          onClick={onClose}
+        />
+      </div>
     </div>
   );
 
@@ -468,34 +416,11 @@ export default function StatusDrilldown(props: IStatusDrilldownProps): JSX.Eleme
     );
   }
 
-  // Filters apply in a fixed order: floor scope → designation → legend toggles.
-  const inScope = detail.floors.filter((entry) => floor === ALL_FLOORS || entry.floor === floor);
-  const designationCounts = new Map<string, number>();
-  inScope.forEach((entry) =>
-    entry.spaces.forEach((space) =>
-      designationCounts.set(space.designation, (designationCounts.get(space.designation) ?? 0) + 1)
-    )
-  );
-  const categoryCounts = new Map<string, number>();
-  inScope.forEach((entry) =>
-    entry.spaces
-      .filter((space) => designation === undefined || space.designation === designation)
-      .forEach((space) => {
-        const key = categoryOf(status, space);
-        categoryCounts.set(key, (categoryCounts.get(key) ?? 0) + 1);
-      })
-  );
-  const visibleFloors = inScope
-    .map((entry) => ({
-      floor: entry.floor,
-      spaces: entry.spaces.filter(
-        (space) =>
-          (designation === undefined || space.designation === designation) &&
-          !hidden.has(categoryOf(status, space))
-      )
-    }))
-    .filter((entry) => entry.spaces.length > 0);
-  const shownCount = visibleFloors.reduce((sum, entry) => sum + entry.spaces.length, 0);
+  const { designationCounts, categoryCounts, visibleFloors, shownCount } = applyDrilldownFilters(detail, {
+    floor,
+    designation,
+    hidden
+  });
   const toneByKey = new Map(categories.map((category) => [category.key, category.tone]));
   const visibleCategories = categories.filter((category) => (categoryCounts.get(category.key) ?? 0) > 0);
 
