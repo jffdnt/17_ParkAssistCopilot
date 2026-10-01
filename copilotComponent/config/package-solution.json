@@ -3,7 +3,7 @@
   "solution": {
     "name": "ParkAssist Garage Copilot Component",
     "id": "26d40212-4f04-4670-97c4-e70d19457b7c",
-    "version": "1.7.0.0",
+    "version": "1.8.0.0",
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "developer": {
@@ -29,7 +29,7 @@
         "title": "ParkAssist Garage Copilot Component Feature",
         "description": "Registers the ParkAssist camera-health Copilot Component and its declarative agent.",
         "id": "d5cf66a6-378f-49fc-a922-e41e25985a33",
-        "version": "1.7.0.0"
+        "version": "1.8.0.0"
       }
     ],
     "webApiPermissionRequests": [

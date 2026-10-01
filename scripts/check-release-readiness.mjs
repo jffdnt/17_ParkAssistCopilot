@@ -21,6 +21,11 @@ for (const file of metadataFiles) {
   }
 }
 
+const hybridPlugin = read("copilotComponent/copilot/live-data-plugin.json");
+if (/PENDING_HYBRID_SSO_REGISTRATION/i.test(hybridPlugin)) {
+  failures.push("copilotComponent/copilot/live-data-plugin.json still contains the placeholder SSO registration ID.");
+}
+
 try {
   const remotes = execFileSync("git", ["remote"], { cwd: root, encoding: "utf8" }).trim();
   if (!remotes) failures.push("No Git remote is configured, so repository CI cannot run from this checkout.");

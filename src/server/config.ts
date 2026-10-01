@@ -37,6 +37,7 @@ export const config = {
   mcpApiKey: process.env.MCP_API_KEY,
   entraTenantId: process.env.ENTRA_TENANT_ID,
   entraClientId: process.env.ENTRA_CLIENT_ID,
+  entraAllowedAudiences: listFromEnv("ENTRA_ALLOWED_AUDIENCES", []),
   entraRequiredScope: process.env.ENTRA_REQUIRED_SCOPE ?? "access_as_user",
   cameraSigningSecret: process.env.CAMERA_SIGNING_SECRET ?? "local-development-only-change-me",
   cameraUrlTtlSeconds: integerFromEnv("CAMERA_URL_TTL_SECONDS", 300, 30, 3_600),

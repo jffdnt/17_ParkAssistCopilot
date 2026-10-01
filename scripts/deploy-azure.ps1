@@ -5,6 +5,7 @@ param(
   [Parameter(Mandatory = $true)] [string] $ContainerRegistryName,
   [Parameter(Mandatory = $true)] [string] $EntraTenantId,
   [Parameter(Mandatory = $true)] [string] $EntraClientId,
+  [string] $EntraAllowedAudiences = '',
   [Parameter(Mandatory = $true)] [string] $CorsAllowedOrigins,
   [string] $ContainerAppName = 'parkassist-mcp',
   [string] $ManagedEnvironmentName = 'parkassist-copilot-env',
@@ -57,6 +58,7 @@ $appParameters = @(
   "imageTag=$ImageTag"
   "entraTenantId=$EntraTenantId"
   "entraClientId=$EntraClientId"
+  "entraAllowedAudiences=$EntraAllowedAudiences"
   "cameraSigningSecret=$CameraSigningSecret"
   "corsAllowedOrigins=$CorsAllowedOrigins"
   "sharePointSiteUrl=$SharePointSiteUrl"

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/copilot/plugin/v2.4/schema.json",
+  "schema_version": "v2.4",
+  "namespace": "parkAssistLiveData",
+  "name_for_human": "ParkAssist Live Data",
+  "description_for_human": "Model-visible live data for the 5 Bell parking garage.",
+  "description_for_model": "Authenticated, read-only live garage data. Always call the matching function together with its ParkAssist SPFx UX tool so the user receives both a same-turn factual answer and an interactive dashboard.",
+  "contact_email": "jffdnt@gmail.com",
+  "functions": [
+    {
+      "name": "garage-overview-data",
+      "description": "Return live 5 Bell occupancy, availability, out-of-service, and camera-health numbers as text and structured data."
+    },
+    {
+      "name": "find-available-spaces-data",
+      "description": "Return available-space totals and bays, optionally filtered by floor or designation."
+    },
+    {
+      "name": "search-license-plate-data",
+      "description": "Return occupied bay matches for at least three license-plate characters."
+    },
+    {
+      "name": "get-stale-camera-feeds-data",
+      "description": "Return stale or missing camera-feed totals and affected bays for the requested scope."
+    }
+  ],
+  "runtimes": [
+    {
+      "type": "RemoteMCPServer",
+      "spec": {
+        "url": "https://parkassist-mcp.happyground-f091a09b.eastus.azurecontainerapps.io/mcp"
+      },
+      "run_for_functions": [
+        "garage-overview-data",
+        "find-available-spaces-data",
+        "search-license-plate-data",
+        "get-stale-camera-feeds-data"
+      ],
+      "auth": {
+        "type": "OAuthPluginVault",
+        "reference_id": "NmVmYjAxNGMtMDhiMC00MjdmLWE4OWItOGI5YjIwZjhhY2FkIyNjMzMwZGVlNi01NzYzLTQ1NTktOTZmOC1kNTMyMzdjNzRkNTA="
+      }
+    }
+  ]
+}

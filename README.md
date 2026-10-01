@@ -1,6 +1,6 @@
 # ParkAssist Copilot
 
-ParkAssist Copilot is a read-only Microsoft Copilot experience for the **5 Bell** parking garage. One Node/Express service exposes live garage data through Streamable HTTP MCP and authenticated REST endpoints. The primary Microsoft 365 pilot is the SPFx Copilot UX component in `copilotComponent/`: it renders an interactive dashboard, garage metrics, and camera previews in the conversation. The Copilot Studio agent remains a text-first fallback and the Teams-compatible route while Copilot UX components are in preview.
+ParkAssist Copilot is a read-only Microsoft Copilot experience for the **5 Bell** parking garage. One Node/Express service exposes live garage data through Streamable HTTP MCP and authenticated REST endpoints. The primary Microsoft 365 pilot is a hybrid agent in `copilotComponent/`: authenticated text-data tools provide same-turn facts while matching SPFx Copilot UX tools render an interactive dashboard, garage metrics, and camera previews. The Copilot Studio agent remains a text-first fallback and the Teams-compatible route while Copilot UX components are in preview.
 
 The implementation was derived from the data sources and bay map used by Power Apps canvas app `d64fefaa-7ac3-4ea8-a823-a27ec0878b50` (`ParkAssist`). The older `12_CopilotWebpart` project informed the Direct Line/Teams requirements, but this repository uses the current MCP Apps pattern instead of embedding a separate SPFx Web Chat surface.
 
@@ -16,10 +16,10 @@ The implementation was derived from the data sources and bay map used by Power A
 ## Architecture
 
 ```text
-Microsoft 365 Copilot ─ SPFx Copilot UX components ─ authenticated REST ─┐
-                                                                          │
-Teams / text fallback ─ Copilot Studio ─ Power Platform MCP connection ──┤
-                                                                          ▼
+Microsoft 365 Copilot ─┬─ text-data MCP tools (same-turn answer) ────────┐
+                       └─ SPFx Copilot UX tools (dashboard/images) ──────┤
+Teams / text fallback ─ Copilot Studio ─ Power Platform MCP connection ─┤
+                                                                         ▼
                    ParkAssist service (Node/Express)
                     │          │                 │
                     │          │                 └─ React MCP App resource (MCP hosts)
@@ -75,6 +75,7 @@ Copy `.env.example` to `.env`. Important production settings:
 | `PARKING_GARAGE` | Garage filter; defaults to `5 Bell` |
 | `STALE_AFTER_MINUTES` | Default stale-camera threshold; defaults to `15` |
 | `AUTH_MODE` | `none` for local only, `api-key` for Copilot Studio testing, `entra` for production SSO |
+| `ENTRA_ALLOWED_AUDIENCES` | Additional comma-separated Entra token audiences, including the Developer Portal SSO Application ID URI used by the hybrid MCP plugin |
 | `CAMERA_SIGNING_SECRET` | At least 32 random characters used to sign temporary preview URLs |
 | `RATE_LIMIT_WINDOW_SECONDS` / `RATE_LIMIT_MAX_REQUESTS` | Per-replica request safety limit; defaults to 300 requests per minute per client IP |
 | `TRUST_PROXY_HOPS` | Trusted reverse-proxy hops used to resolve client IPs; defaults to `0`, while the Container Apps template sets `1` |

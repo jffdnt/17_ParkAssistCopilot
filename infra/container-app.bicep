@@ -9,6 +9,7 @@ param imageTag string
 
 param entraTenantId string
 param entraClientId string
+param entraAllowedAudiences string = ''
 
 @secure()
 param cameraSigningSecret string
@@ -114,6 +115,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'AUTH_MODE', value: 'entra' }
             { name: 'ENTRA_TENANT_ID', value: entraTenantId }
             { name: 'ENTRA_CLIENT_ID', value: entraClientId }
+            { name: 'ENTRA_ALLOWED_AUDIENCES', value: entraAllowedAudiences }
             { name: 'ENTRA_REQUIRED_SCOPE', value: 'access_as_user' }
             { name: 'CAMERA_SIGNING_SECRET', secretRef: 'camera-signing-secret' }
             { name: 'CAMERA_URL_TTL_SECONDS', value: '300' }

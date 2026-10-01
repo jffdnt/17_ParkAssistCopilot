@@ -50,9 +50,14 @@ export async function requireMcpAuthorization(request: Request, response: Respon
 
 async function verifyEntraToken(token: string): Promise<JWTPayload> {
   const tenantId = config.entraTenantId!;
+  const audiences = new Set([
+    config.entraClientId!,
+    `api://${config.entraClientId}`,
+    ...config.entraAllowedAudiences,
+  ]);
   jwks ??= createRemoteJWKSet(new URL(`https://login.microsoftonline.com/${tenantId}/discovery/v2.0/keys`));
   const { payload } = await jwtVerify(token, jwks, {
-    audience: [config.entraClientId!, `api://${config.entraClientId}`],
+    audience: [...audiences],
   });
   const acceptedIssuers = new Set([
     `https://login.microsoftonline.com/${tenantId}/v2.0`,

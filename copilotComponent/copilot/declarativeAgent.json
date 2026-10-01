@@ -26,6 +26,10 @@
     {
       "id": "parkAssistGarageAction",
       "file": "ai-plugin.json"
+    },
+    {
+      "id": "parkAssistLiveDataAction",
+      "file": "live-data-plugin.json"
     }
   ]
 }

@@ -2,6 +2,14 @@
 
 Workspace reviewed, public health/auth probed, and tenant deployment in progress: 2026-10-01.
 
+## Hybrid-agent rollout (2026-10-01)
+
+- Added four authenticated, text-only MCP aliases alongside the existing four SPFx Copilot UX tools. The declarative agent now calls both paths for every live query: the text tool supplies reliable same-turn facts and the UX tool supplies the dashboard or camera interface when the preview host is available.
+- Created a dedicated persistent Developer Portal SSO registration named **ParkAssist Garage Hybrid MCP Data**, restricted to Teams app `6fe70260-1658-4715-9a75-9d49ebcf577c` and the current tenant. Its full registration ID is stored in `live-data-plugin.json`; its generated Application ID URI is accepted as an additional server token audience.
+- Image `parkassist-mcp:20261001-hybrid1` is live as revision `parkassist-mcp--0000010` at 100% traffic. The container reported its MCP listener, `/health` and `/ready` passed, and an unauthenticated `/mcp` request returned the expected 401.
+- SharePoint solution `1.8.0.0` was uploaded over the existing catalog item and deployed tenant-wide. The catalog reports Enabled, Valid, CurrentVersionDeployed, and Added to all sites; **Add to Teams** was run to publish the updated hybrid agent definition.
+- The installed **ParkAssist Garage** agent opens at its existing title ID and shows the current four conversation starters. A fresh live conversation remains the final acceptance gate after agent-catalog propagation.
+
 ## Current route summary
 
 - **Microsoft 365 Copilot primary pilot:** SPFx Copilot UX components → delegated REST calls → interactive dashboard, camera-result grids, refresh, narration, and fullscreen UI.
