@@ -20,7 +20,7 @@
     "@microsoft/sp-lodash-subset": "1.24.0-beta.5",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "tslib": "2.3.1",
+    "tslib": "2.8.1",
     "zod": "3.24.1",
     "zod-to-json-schema": "3.24.1"
   },
