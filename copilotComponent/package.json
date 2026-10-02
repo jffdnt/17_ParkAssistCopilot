@@ -18,7 +18,7 @@
     "@microsoft/sp-copilot-component": "1.24.0-beta.5",
     "@microsoft/sp-http": "1.24.0-beta.5",
     "@microsoft/sp-lodash-subset": "1.24.0-beta.5",
-    "react": "18.3.1",
+    "react": "19.3.0",
     "react-dom": "18.3.1",
     "tslib": "2.3.1",
     "zod": "3.24.1",
@@ -31,7 +31,7 @@
     "@microsoft/spfx-web-build-rig": "1.24.0-beta.5",
     "@rushstack/heft": "1.2.22",
     "@types/jest": "30.0.0",
-    "@types/react": "18.2.79",
+    "@types/react": "19.3.0",
     "@types/react-dom": "18.2.25",
     "@types/webpack-env": "~1.15.2",
     "css-loader": "~7.1.2",
@@ -45,6 +45,6 @@
     "uuid": ">=11.1.1"
   },
   "resolutions": {
-    "@types/react": "18.2.79"
+    "@types/react": "19.3.0"
   }
 }
