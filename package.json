@@ -26,7 +26,7 @@
     "@fluentui/react-components": "^9.72.10",
     "@fluentui/react-icons": "^2.0.319",
     "@modelcontextprotocol/client": "2.0.0",
-    "@modelcontextprotocol/core": "2.0.0",
+    "@modelcontextprotocol/core": "2.2.0",
     "@modelcontextprotocol/express": "2.0.0",
     "@modelcontextprotocol/ext-apps": "2.0.0",
     "@modelcontextprotocol/node": "2.0.0",
