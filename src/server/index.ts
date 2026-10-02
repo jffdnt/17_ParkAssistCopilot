@@ -3,13 +3,16 @@ import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpHandler } from "@modelcontextprotocol/server";
 import type { Request, Response } from "express";
 import { readFile } from "node:fs/promises";
-import { requireMcpAuthorization } from "./auth.js";
+import { requireMcpAuthorization, requirePluginApiKeyAuthorization } from "./auth.js";
 import { config } from "./config.js";
 import { createParkAssistMcpServer } from "./mcp.js";
 import { resolveWidgetHtmlPath } from "./paths.js";
 import { FixedWindowRateLimiter, createRateLimitMiddleware } from "./middleware/rate-limit.js";
 import { requestTelemetry } from "./middleware/request-telemetry.js";
+import { toPluginDataResult } from "./plugin-data.js";
+import { createPluginOpenApiDocument } from "./plugin-openapi.js";
 import {
+  garageStatus,
   integerList,
   optionalInteger,
   plateQuery,
@@ -65,6 +68,19 @@ async function main(): Promise<void> {
     next();
   });
 
+  // Microsoft 365's API-plugin runtime probes the origin before invoking a
+  // secured operation. Keep that probe cheap and non-sensitive so a missing
+  // marketing home page cannot make an otherwise healthy plugin look offline.
+  app.get("/", (_request: Request, response: Response) => {
+    response.json({
+      status: "ok",
+      service: "parkassist-copilot",
+      health: "/health",
+      readiness: "/ready",
+      openApi: "/openapi/parkassist-live-data.json",
+    });
+  });
+
   app.get("/health", (_request: Request, response: Response) => {
     response.json({ status: "ok", service: "parkassist-copilot", configuredSpaces: mapRows.length });
   });
@@ -88,6 +104,11 @@ async function main(): Promise<void> {
   app.get("/preview", async (_request: Request, response: Response) => {
     const html = await readFile(resolveWidgetHtmlPath(), "utf8");
     response.type("html").send(html);
+  });
+
+  app.get("/openapi/parkassist-live-data.json", (_request: Request, response: Response) => {
+    response.setHeader("Cache-Control", "public, max-age=300");
+    response.json(createPluginOpenApiDocument(config.publicBaseUrl));
   });
 
   app.get("/.well-known/oauth-protected-resource/mcp", (_request: Request, response: Response) => {
@@ -186,6 +207,20 @@ async function main(): Promise<void> {
 
   registerComponentRoute("/api/overview", "Garage overview", () => parking.getOverview());
 
+  registerComponentRoute("/api/status-detail", "Status detail", (request) =>
+    parking.getStatusDetail(garageStatus(request.query.status)),
+  );
+
+  // Camera links expire quickly. Issue one only after the signed-in user opens
+  // a space instead of embedding already-aging links in the full drill-down.
+  registerComponentRoute("/api/camera-preview-url", "Camera preview URL", (request) => {
+    const bayId = typeof request.query.bayId === "string" ? request.query.bayId : undefined;
+    if (!bayId || !parking.hasConfiguredBay(bayId)) {
+      throw new RequestValidationError("bayId must identify a configured garage space.");
+    }
+    return Promise.resolve({ imageUrl: parking.getCameraPreviewUrl(bayId) });
+  });
+
   registerComponentRoute("/api/available-spaces", "Available space", (request) =>
     parking.findAvailableSpaces({
       floor: optionalInteger(request.query.floor, "floor", { min: 1, max: 11 }),
@@ -205,6 +240,63 @@ async function main(): Promise<void> {
       includeImage: true,
     });
   });
+
+  /**
+   * Registers the model-visible half of the hybrid agent. These GET endpoints
+   * use a Microsoft-vaulted, app-scoped API key and intentionally omit signed
+   * camera URLs. The paired SPFx routes retain delegated Entra authorization
+   * and own all interactive UI and image rendering.
+   */
+  const registerPluginRoute = (
+    path: string,
+    label: string,
+    handler: (request: Request) => Promise<unknown>,
+  ): void => {
+    app.get(path, requirePluginApiKeyAuthorization, async (request: Request, response: Response) => {
+      try {
+        response.json(await handler(request));
+      } catch (error) {
+        if (error instanceof RequestValidationError) {
+          response.status(error.statusCode).json({ error: error.message });
+          return;
+        }
+        console.error(`${label} plugin lookup failed.`, error);
+        response.status(502).json({ error: "The garage service is temporarily unavailable." });
+      }
+    });
+  };
+
+  registerPluginRoute("/api/plugin/overview", "Garage overview", async () =>
+    toPluginDataResult(await parking.getOverview()),
+  );
+
+  registerPluginRoute("/api/plugin/available-spaces", "Available space", async (request) =>
+    toPluginDataResult(await parking.findAvailableSpaces({
+      floors: integerList(request.query.floors),
+      designation: typeof request.query.designation === "string" ? request.query.designation : undefined,
+      limit: optionalInteger(request.query.limit, "limit", { min: 1, max: 24 }) ?? 12,
+      page: 1,
+      includeImage: false,
+    })),
+  );
+
+  registerPluginRoute("/api/plugin/plate-search", "Plate search", async (request) =>
+    toPluginDataResult(await parking.searchLicensePlate(plateQuery(request.query.query), {
+      limit: optionalInteger(request.query.limit, "limit", { min: 1, max: 24 }) ?? 12,
+      page: 1,
+      includeImage: false,
+    })),
+  );
+
+  registerPluginRoute("/api/plugin/stale-feeds", "Stale feed", async (request) =>
+    toPluginDataResult(await parking.getStaleCameraFeeds({
+      floors: integerList(request.query.floors),
+      thresholdMinutes: optionalInteger(request.query.thresholdMinutes, "thresholdMinutes", { min: 1, max: 10_080 }),
+      limit: optionalInteger(request.query.limit, "limit", { min: 1, max: 24 }) ?? 12,
+      page: 1,
+      includeImage: false,
+    })),
+  );
 
   app.all("/mcp", requireMcpAuthorization, (request: Request, response: Response) => {
     void nodeHandler(request, response, request.body);

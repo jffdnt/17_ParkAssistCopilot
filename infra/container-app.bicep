@@ -14,6 +14,9 @@ param entraAllowedAudiences string = ''
 @secure()
 param cameraSigningSecret string
 
+@secure()
+param pluginApiKey string
+
 param parkAssistApiBaseUrl string = 'https://parkassistproxy99b.azurewebsites.net/api'
 param parkingGarage string = '5 Bell'
 param corsAllowedOrigins string
@@ -95,6 +98,10 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           name: 'camera-signing-secret'
           value: cameraSigningSecret
         }
+        {
+          name: 'plugin-api-key'
+          value: pluginApiKey
+        }
       ]
     }
     template: {
@@ -117,6 +124,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'ENTRA_CLIENT_ID', value: entraClientId }
             { name: 'ENTRA_ALLOWED_AUDIENCES', value: entraAllowedAudiences }
             { name: 'ENTRA_REQUIRED_SCOPE', value: 'access_as_user' }
+            { name: 'PLUGIN_API_KEY', secretRef: 'plugin-api-key' }
             { name: 'CAMERA_SIGNING_SECRET', secretRef: 'camera-signing-secret' }
             { name: 'CAMERA_URL_TTL_SECONDS', value: '300' }
             { name: 'PARKASSIST_API_BASE_URL', value: parkAssistApiBaseUrl }

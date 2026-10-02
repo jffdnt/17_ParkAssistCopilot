@@ -82,6 +82,52 @@ export interface IGarageResult {
   configuredInScope?: number;
 }
 
+/**
+ * The dashboard tiles a user can drill into. Mirrors `GarageStatus` in
+ * `src/shared/contracts.ts`.
+ */
+export type GarageStatus = 'available' | 'occupied' | 'stale-or-missing' | 'out-of-service';
+
+export interface IHealthAnnotation {
+  issueType?: string;
+  isActive: boolean;
+  lastChecked?: string;
+  suggestedStatus?: string;
+}
+
+/** One space in a drill-down. Plates are present only in the occupied view. */
+export interface IStatusSpace {
+  bayId: string;
+  spaceNumber: string;
+  designation: string;
+  reserved: boolean;
+  plateDisplay?: string;
+  feedState: FeedState;
+  thumbnailAgeMinutes?: number;
+  parkedMinutes?: number;
+  imageUrl?: string;
+  health?: IHealthAnnotation;
+}
+
+export interface IStatusFloor {
+  floor: number;
+  configured: number;
+  spaces: IStatusSpace[];
+}
+
+/**
+ * Every bay one dashboard tile counts, grouped by floor (all floors present,
+ * including empty ones). Mirrors `GarageStatusDetail` in `src/shared/contracts.ts`.
+ */
+export interface IStatusDetail {
+  status: GarageStatus;
+  garage: string;
+  generatedAt: string;
+  staleAfterMinutes: number;
+  total: number;
+  floors: IStatusFloor[];
+}
+
 export class ParkAssistService {
   private readonly _aadHttpClientFactory: AadHttpClientFactory;
 
@@ -117,10 +163,52 @@ export class ParkAssistService {
     return this._get('/api/plate-search', { query: plate, limit });
   }
 
+  public async getStatusDetail(status: GarageStatus): Promise<IStatusDetail> {
+    const payload = await this._fetchJson<Partial<IStatusDetail>>('/api/status-detail', { status });
+    return {
+      status,
+      garage: payload.garage ?? '5 Bell',
+      generatedAt: payload.generatedAt ?? new Date().toISOString(),
+      staleAfterMinutes: payload.staleAfterMinutes ?? 15,
+      total: payload.total ?? 0,
+      floors: payload.floors ?? []
+    };
+  }
+
+  /** Obtain a fresh, short-lived image URL when the user opens a space card. */
+  public async getCameraPreviewUrl(bayId: string): Promise<string> {
+    const payload = await this._fetchJson<{ imageUrl?: unknown }>('/api/camera-preview-url', { bayId });
+    if (typeof payload.imageUrl !== 'string' || payload.imageUrl.length === 0) {
+      throw new Error('ParkAssist did not return a camera preview URL.');
+    }
+    return payload.imageUrl;
+  }
+
   private async _get(
     path: string,
     parameters: Record<string, string | number | undefined> = {}
   ): Promise<IGarageResult> {
+    const payload = await this._fetchJson<Partial<IGarageResult>>(path, parameters);
+    return {
+      title: payload.title ?? '',
+      summary: payload.summary ?? '',
+      garage: payload.garage ?? '5 Bell',
+      generatedAt: payload.generatedAt ?? new Date().toISOString(),
+      staleAfterMinutes: payload.staleAfterMinutes ?? 15,
+      metrics: payload.metrics ?? {},
+      bays: payload.bays ?? [],
+      totalMatches: payload.totalMatches ?? 0,
+      hasMore: payload.hasMore ?? false,
+      query: payload.query,
+      floorBreakdown: payload.floorBreakdown,
+      configuredInScope: payload.configuredInScope
+    };
+  }
+
+  private async _fetchJson<T>(
+    path: string,
+    parameters: Record<string, string | number | undefined>
+  ): Promise<T> {
     const search = new URLSearchParams();
     Object.keys(parameters).forEach((key) => {
       const value = parameters[key];
@@ -140,21 +228,7 @@ export class ParkAssistService {
       throw new Error(`ParkAssist returned ${response.status} for ${path}.`);
     }
 
-    const payload: Partial<IGarageResult> = await response.json();
-    return {
-      title: payload.title ?? '',
-      summary: payload.summary ?? '',
-      garage: payload.garage ?? '5 Bell',
-      generatedAt: payload.generatedAt ?? new Date().toISOString(),
-      staleAfterMinutes: payload.staleAfterMinutes ?? 15,
-      metrics: payload.metrics ?? {},
-      bays: payload.bays ?? [],
-      totalMatches: payload.totalMatches ?? 0,
-      hasMore: payload.hasMore ?? false,
-      query: payload.query,
-      floorBreakdown: payload.floorBreakdown,
-      configuredInScope: payload.configuredInScope
-    };
+    return (await response.json()) as T;
   }
 }
 

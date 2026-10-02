@@ -5,9 +5,12 @@ import {
   ProgressBar,
   Title2,
   makeStyles,
+  mergeClasses,
   tokens
 } from '@fluentui/react-components';
-import type { IGarageResult } from '../services/ParkAssistService';
+import type { GarageStatus, IGarageResult } from '../services/ParkAssistService';
+import { DrilldownHostContext } from './DrilldownHost';
+import StatusDrilldown from './StatusDrilldown';
 
 const useStyles = makeStyles({
   root: {
@@ -45,6 +48,20 @@ const useStyles = makeStyles({
     padding: tokens.spacingHorizontalM,
     border: `1px solid ${tokens.colorNeutralStroke2}`
   },
+  metricInteractive: {
+    cursor: 'pointer',
+    ':focus-visible': {
+      outline: `2px solid ${tokens.colorStrokeFocus2}`,
+      outlineOffset: '2px'
+    }
+  },
+  metricSelected: {
+    border: `2px solid ${tokens.colorBrandStroke1}`,
+    backgroundColor: tokens.colorNeutralBackground1Selected
+  },
+  hint: {
+    color: tokens.colorNeutralForeground3
+  },
   warning: {
     color: tokens.colorPaletteDarkOrangeForeground1
   },
@@ -53,22 +70,39 @@ const useStyles = makeStyles({
   }
 });
 
-/** Shared dashboard metrics used by every conversational result view. */
+/**
+ * Shared dashboard metrics used by every conversational result view. When a
+ * DrilldownHostContext is available each counter is a button that opens
+ * the spaces behind it.
+ */
 export default function LiveMetrics({ result }: { result: IGarageResult }): JSX.Element {
   const styles = useStyles();
+  const drilldownHost = React.useContext(DrilldownHostContext);
+  const [openStatus, setOpenStatus] = React.useState<GarageStatus | undefined>(undefined);
   const metrics = result.metrics;
   const occupancy = Math.max(0, Math.min(100, metrics.occupancyPercent ?? 0));
   const staleOrMissing = (metrics.staleFeeds ?? 0) + (metrics.missingFeeds ?? 0);
-  const cards: { label: string; value: number | string; tone?: string }[] = [
-    { label: 'Available', value: metrics.available ?? '—' },
-    { label: 'Occupied', value: metrics.occupied ?? '—' },
-    { label: 'Stale or missing feeds', value: staleOrMissing, tone: staleOrMissing > 0 ? styles.warning : undefined },
+  const cards: { status: GarageStatus; label: string; value: number | string; tone?: string }[] = [
+    { status: 'available', label: 'Available', value: metrics.available ?? '—' },
+    { status: 'occupied', label: 'Occupied', value: metrics.occupied ?? '—' },
     {
+      status: 'stale-or-missing',
+      label: 'Stale or missing feeds',
+      value: staleOrMissing,
+      tone: staleOrMissing > 0 ? styles.warning : undefined
+    },
+    {
+      status: 'out-of-service',
       label: 'Out of service',
       value: metrics.outOfService ?? '—',
       tone: (metrics.outOfService ?? 0) > 0 ? styles.danger : undefined
     }
   ];
+  const openCard = cards.find((card) => card.status === openStatus);
+  const drilldownId = React.useId();
+
+  const toggle = (status: GarageStatus): void =>
+    setOpenStatus((current) => (current === status ? undefined : status));
 
   return (
     <section className={styles.root} aria-label="Live garage dashboard">
@@ -80,13 +114,54 @@ export default function LiveMetrics({ result }: { result: IGarageResult }): JSX.
         <Title2 className={styles.occupancyValue}>{Math.round(occupancy)}%</Title2>
       </div>
       <div className={styles.grid}>
-        {cards.map((card) => (
-          <Card key={card.label} className={styles.metric}>
-            <Title2 className={card.tone}>{card.value}</Title2>
-            <Caption1>{card.label}</Caption1>
-          </Card>
-        ))}
+        {cards.map((card) => {
+          if (!drilldownHost) {
+            return (
+              <Card key={card.label} className={styles.metric}>
+                <Title2 className={card.tone}>{card.value}</Title2>
+                <Caption1>{card.label}</Caption1>
+              </Card>
+            );
+          }
+          const isOpen = openStatus === card.status;
+          return (
+            <Card
+              key={card.label}
+              className={mergeClasses(styles.metric, styles.metricInteractive, isOpen && styles.metricSelected)}
+              role="button"
+              tabIndex={0}
+              aria-expanded={isOpen}
+              aria-controls={isOpen ? drilldownId : undefined}
+              aria-label={`${card.value} ${card.label}. ${isOpen ? 'Hide' : 'Show'} spaces.`}
+              onClick={() => toggle(card.status)}
+              onKeyDown={(event: React.KeyboardEvent<HTMLDivElement>) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  toggle(card.status);
+                }
+              }}
+            >
+              <Title2 className={card.tone}>{card.value}</Title2>
+              <Caption1>{card.label}</Caption1>
+            </Card>
+          );
+        })}
       </div>
+      {drilldownHost && !openCard ? (
+        <Caption1 className={styles.hint}>Select a number to see the spaces behind it, then ask Copilot about them.</Caption1>
+      ) : undefined}
+      {drilldownHost && openCard ? (
+        <div id={drilldownId}>
+          <StatusDrilldown
+            key={openCard.status}
+            status={openCard.status}
+            label={openCard.label}
+            host={drilldownHost}
+            refreshKey={result.generatedAt}
+            onClose={() => setOpenStatus(undefined)}
+          />
+        </div>
+      ) : undefined}
     </section>
   );
 }

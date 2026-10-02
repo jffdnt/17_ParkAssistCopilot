@@ -4,7 +4,7 @@
 
 - Set `AUTH_MODE=entra`; the server rejects `AUTH_MODE=none` when `NODE_ENV=production`.
 - Register a single-tenant Microsoft Entra application, expose `access_as_user`, and configure the service audience/tenant values.
-- Approve the Copilot Component's delegated `access_as_user` request in SharePoint Admin Center. The older Microsoft 365 SSO authentication registration applies only to the legacy `appPackage/` route.
+- Approve the Copilot Component's delegated `access_as_user` request in SharePoint Admin Center.
 - Use managed identity plus site-scoped Graph permission for `SensorHealth` where possible.
 - Store `CAMERA_SIGNING_SECRET` and any client secret in Azure Key Vault/Container Apps secrets. Production startup rejects known placeholders and values shorter than 32 bytes.
 - Restrict `ALLOWED_HOSTS` to the deployed hostname.
@@ -17,8 +17,8 @@
 ## Data minimization implemented
 
 - Plate input is normalized and limited to 3–16 characters.
-- Full plates are returned only by occupied-bay plate searches. Both partial and exact searches return the full matching plate (masking was deliberately disabled; confirm this still matches the data owner's privacy rules before wider rollout).
-- Availability and stale-camera results omit machine-readable plate text.
+- Full plates are returned by occupied-bay plate searches and by the Entra-protected occupied dashboard drill-down. Both partial and exact searches return the full matching plate (masking was deliberately disabled; confirm this still matches the data owner's privacy rules before wider rollout).
+- Availability, stale-camera, and out-of-service results omit machine-readable plate text. Occupied drill-down model context is bounded to the listed/selected spaces, rather than every occupied vehicle.
 - The agent is read-only and has no mutation tools.
 - Camera previews expire and are scoped to a configured bay.
 - Upstream image URLs remain server-side.

@@ -48,6 +48,27 @@ export async function requireMcpAuthorization(request: Request, response: Respon
   }
 }
 
+/**
+ * Authenticates the narrow REST surface used by the Microsoft 365 API plugin.
+ * The key is stored in the Microsoft Enterprise token store and an Azure
+ * Container Apps secret; it is never shipped in the app package or repository.
+ */
+export function requirePluginApiKeyAuthorization(
+  request: Request,
+  response: Response,
+  next: NextFunction,
+): void {
+  if (!isValidPluginApiKey(request.header("x-parkassist-api-key"), config.pluginApiKey)) {
+    response.status(401).json({ error: "A valid ParkAssist plugin credential is required." });
+    return;
+  }
+  next();
+}
+
+export function isValidPluginApiKey(provided: string | undefined, expected: string | undefined): boolean {
+  return Boolean(provided && expected && safeEqual(provided, expected));
+}
+
 async function verifyEntraToken(token: string): Promise<JWTPayload> {
   const tenantId = config.entraTenantId!;
   const audiences = new Set([

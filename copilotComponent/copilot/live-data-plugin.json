@@ -4,41 +4,74 @@
   "namespace": "parkAssistLiveData",
   "name_for_human": "ParkAssist Live Data",
   "description_for_human": "Model-visible live data for the 5 Bell parking garage.",
-  "description_for_model": "Authenticated, read-only live garage data. Always call the matching function together with its ParkAssist SPFx UX tool so the user receives both a same-turn factual answer and an interactive dashboard.",
+  "description_for_model": "Authenticated, read-only live garage data without camera image URLs. Always call the matching function together with its ParkAssist SPFx UX tool so the user receives both a same-turn factual answer and an interactive dashboard.",
   "contact_email": "jffdnt@gmail.com",
   "functions": [
     {
-      "name": "garage-overview-data",
-      "description": "Return live 5 Bell occupancy, availability, out-of-service, and camera-health numbers as text and structured data."
+      "name": "garageOverviewData",
+      "description": "Return live 5 Bell occupancy, availability, out-of-service, and camera-health numbers as text and structured data.",
+      "states": {
+        "responding": {
+          "instructions": "Quote the returned summary, exact metrics, and generatedAt timestamp in the current answer. Never tell the user to read a card for values this function returned."
+        }
+      },
+      "capabilities": {
+        "security_info": { "data_handling": ["GetPrivateData"] }
+      }
     },
     {
-      "name": "find-available-spaces-data",
-      "description": "Return available-space totals and bays, optionally filtered by floor or designation."
+      "name": "findAvailableSpacesData",
+      "description": "Return available-space totals and a bounded bay page, optionally filtered by floor or designation. Use totalMatches for the total; never count the bay page.",
+      "states": {
+        "responding": {
+          "instructions": "Quote summary, totalMatches, floorBreakdown, scope, and generatedAt. The bays array is one page and must not be counted as the total."
+        }
+      },
+      "capabilities": {
+        "security_info": { "data_handling": ["GetPrivateData"] }
+      }
     },
     {
-      "name": "search-license-plate-data",
-      "description": "Return occupied bay matches for at least three license-plate characters."
+      "name": "searchLicensePlateData",
+      "description": "Return occupied bay matches for at least three license-plate characters. Use only for a legitimate garage-operations request.",
+      "states": {
+        "responding": {
+          "instructions": "Report only matches present in the response, including the generatedAt timestamp. Never infer missing plate characters."
+        }
+      },
+      "capabilities": {
+        "security_info": { "data_handling": ["GetPrivateData"] }
+      }
     },
     {
-      "name": "get-stale-camera-feeds-data",
-      "description": "Return stale or missing camera-feed totals and affected bays for the requested scope."
+      "name": "getStaleCameraFeedsData",
+      "description": "Return stale or missing camera-feed totals and affected bay metadata for the requested scope. Camera images remain on the paired SPFx UX tool.",
+      "states": {
+        "responding": {
+          "instructions": "Quote summary, totalMatches, floorBreakdown, scope, and generatedAt. Explain that camera previews are rendered by the dashboard when available."
+        }
+      },
+      "capabilities": {
+        "security_info": { "data_handling": ["GetPrivateData"] }
+      }
     }
   ],
   "runtimes": [
     {
-      "type": "RemoteMCPServer",
+      "type": "OpenApi",
       "spec": {
-        "url": "https://parkassist-mcp.happyground-f091a09b.eastus.azurecontainerapps.io/mcp"
+        "url": "parkassist-live-data.json",
+        "progress_style": "ShowUsageWithInputAndOutput"
       },
       "run_for_functions": [
-        "garage-overview-data",
-        "find-available-spaces-data",
-        "search-license-plate-data",
-        "get-stale-camera-feeds-data"
+        "garageOverviewData",
+        "findAvailableSpacesData",
+        "searchLicensePlateData",
+        "getStaleCameraFeedsData"
       ],
       "auth": {
-        "type": "OAuthPluginVault",
-        "reference_id": "NmVmYjAxNGMtMDhiMC00MjdmLWE4OWItOGI5YjIwZjhhY2FkIyNjMzMwZGVlNi01NzYzLTQ1NTktOTZmOC1kNTMyMzdjNzRkNTA="
+        "type": "ApiKeyPluginVault",
+        "reference_id": "14dc50aa-2ee7-445a-a74f-adb1b5c3d931"
       }
     }
   ]

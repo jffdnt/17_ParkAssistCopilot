@@ -56,7 +56,7 @@ If the onboarding wizard is unavailable in the environment:
 
 ## 3. Set agent behavior
 
-Use the contents of `appPackage/instruction.txt` as the agent instruction baseline. Confirm these test prompts in the Copilot Studio test pane:
+Use the `instructions` already defined in `copilotStudio/agent/agent.mcs.yml` (pushed live with `pac copilot push --project-dir ./copilotStudio/agent`) as the agent instruction baseline. Confirm these test prompts in the Copilot Studio test pane:
 
 - `Which cameras have stale feeds? Show me the bay previews.`
 - `Show available General spaces on floor 5.`
@@ -70,7 +70,7 @@ For stale feeds, verify the answer includes the space, bay ID, floor, camera age
 1. Publish the agent at least once.
 2. Open **Channels** → **Teams and Microsoft 365 Copilot**.
 3. Keep **Make agent available in Microsoft 365 Copilot** selected and add the channel.
-4. Edit the details and use `appPackage/color.png` as the agent icon, accent `#0078D4`, and the descriptions from `appPackage/manifest.json`.
+4. Edit the details and use `copilotComponent/copilot/color.png` as the agent icon, accent `#0078D4`, and the descriptions from `copilotComponent/copilot/manifest.json`.
 5. Select **See agent in Microsoft 365** (and **See agent in Teams** when validating Teams), then install it for yourself first.
 6. In a new 1:1 conversation, connect the delegated MCP OAuth connection when prompted and repeat the four prompts above. Use **Start over** after republishing so the host uses the newest agent version.
 7. Only after personal validation, use **Availability options** to share with a small operations group or submit for admin approval.
@@ -82,15 +82,13 @@ Teams and Copilot Studio cache published agent versions. If a new build appears 
 The SPFx package in `copilotComponent/` is the primary Microsoft 365 pilot because it is the route that can render the dashboard UI and camera previews. Copilot UX components are preview-only and currently render in Microsoft 365 Copilot, not Teams, so retain the Copilot Studio route above as the text/Teams fallback.
 
 1. Register a single-tenant Entra API application and expose `access_as_user`.
-2. In Microsoft 365 Agents Toolkit or Teams Developer Portal, create an Entra SSO authentication registration for the public MCP base URL.
-3. Copy `env/.env.local.example` to `env/.env.local` and enter the Teams app ID, Entra client ID, SSO registration ID, endpoint, publisher URLs, and email.
-4. Build `copilotComponent/` with `npm run build` and upload the generated `.sppkg` to the tenant App Catalog.
+2. Set the build-time deployment coordinates in `copilotComponent/config/parkassist-environment.json` (`resourceUri: api://<client-id>`, `baseUrl: <deployed MCP service URL>`), or set the `PARKASSIST_RESOURCE_URI`/`PARKASSIST_BASE_URL` environment variables directly before building.
+3. Build `copilotComponent/` with `npm run build` and upload the generated `.sppkg` to the tenant App Catalog.
+4. Approve `ParkAssist Copilot` / `access_as_user` in SharePoint Admin Center → Advanced → API access.
 5. Deploy it, select **Add to all sites**, and then select **Add to Teams** to publish the declarative agent to the tenant agent catalog.
 6. In Microsoft 365 Copilot, add **ParkAssist Garage** from **Built by your org** and validate the overview, availability, plate, and stale-camera experiences in new conversations.
 
-The legacy package in `appPackage/` remains source history only; do not sideload it for this pilot.
-
-The package uses an OAuth token-store reference; it never contains a client secret.
+See [copilotComponent/README.md](../copilotComponent/README.md) for the full build and deployment reference. The hybrid OpenAPI action uses an `ApiKeyPluginVault` token-store reference; it never contains the key itself.
 
 ## 6. Acceptance checklist
 

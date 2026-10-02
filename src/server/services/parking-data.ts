@@ -2,6 +2,8 @@ import type {
   GarageBayResult,
   GarageFloorCount,
   GarageMetrics,
+  GarageStatus,
+  GarageStatusDetail,
   GarageToolResult,
 } from "../../shared/contracts.js";
 import type { BayMapRow, MergedGarageBay, ParkAssistBay } from "../types.js";
@@ -75,6 +77,14 @@ export class ParkingDataService {
 
   public hasConfiguredBay(bayId: string): boolean {
     return this.options.mapRows.some((row) => row.bayId === bayId);
+  }
+
+  /** Issue a short-lived preview URL after the signed-in user opens one space. */
+  public getCameraPreviewUrl(bayId: string): string {
+    if (!this.hasConfiguredBay(bayId)) {
+      throw new Error(`Camera preview requested for an unknown bay: ${bayId}`);
+    }
+    return this.options.signer.sign(bayId);
   }
 
   /** Core upstream check used by the unauthenticated platform readiness probe. */
@@ -226,6 +236,56 @@ export class ParkingDataService {
     return this.withCard(result);
   }
 
+  /**
+   * Every bay counted by one dashboard tile, grouped by floor, for the
+   * drill-down behind that tile. Uses the same predicate as `computeMetrics`,
+   * so `total` always equals the number on the tile from the same snapshot.
+   */
+  public async getStatusDetail(status: GarageStatus): Promise<GarageStatusDetail> {
+    const staleAfterMinutes = this.options.staleAfterMinutes;
+    const snapshot = await this.getSnapshot(staleAfterMinutes);
+    const now = Date.parse(snapshot.generatedAt);
+    const floors = new Map<number, GarageStatusDetail["floors"][number]>();
+    for (const bay of snapshot.bays) {
+      if (!floors.has(bay.floor)) floors.set(bay.floor, { floor: bay.floor, configured: 0, spaces: [] });
+      floors.get(bay.floor)!.configured += 1;
+    }
+
+    let total = 0;
+    for (const bay of snapshot.bays) {
+      if (!matchesStatus(bay, status, staleAfterMinutes)) continue;
+      total += 1;
+      const entered = bay.visitEnteredAt ? Date.parse(bay.visitEnteredAt) : Number.NaN;
+      floors.get(bay.floor)!.spaces.push({
+        bayId: bay.bayId,
+        spaceNumber: bay.spaceNumber,
+        designation: bay.designation,
+        reserved: bay.reserved,
+        plateDisplay: status === "occupied" ? bay.plate ?? undefined : undefined,
+        feedState: feedStateOf(bay, staleAfterMinutes),
+        thumbnailAgeMinutes: bay.thumbnailAgeMinutes,
+        parkedMinutes: status === "occupied" && Number.isFinite(entered)
+          ? Math.max(0, Math.round((now - entered) / 60_000))
+          : undefined,
+        health: bay.health,
+      });
+    }
+
+    const byNumber = (left: { spaceNumber: string }, right: { spaceNumber: string }) =>
+      left.spaceNumber.localeCompare(right.spaceNumber, undefined, { numeric: true });
+    const grouped = [...floors.values()].sort((left, right) => left.floor - right.floor);
+    for (const floor of grouped) floor.spaces.sort(byNumber);
+
+    return {
+      status,
+      garage: this.options.garage,
+      generatedAt: snapshot.generatedAt,
+      staleAfterMinutes,
+      total,
+      floors: grouped,
+    };
+  }
+
   public async getCameraImage(bayId: string): Promise<Response> {
     return await this.fetchWithRetry(
       () => this.fetchFn(`${this.options.apiBaseUrl}/images/${encodeURIComponent(bayId)}`, {
@@ -334,9 +394,7 @@ export class ParkingDataService {
       thumbnailAgeMinutes: bay.thumbnailAgeMinutes,
       lastContact: bay.lastContact,
       lastContactAgeMinutes: bay.lastContactAgeMinutes,
-      feedState: bay.thumbnailTimestamp == null
-        ? "missing"
-        : (bay.thumbnailAgeMinutes ?? 0) > staleAfterMinutes ? "stale" : "fresh",
+      feedState: feedStateOf(bay, staleAfterMinutes),
       imageUrl: includeImage ? this.options.signer.sign(bay.bayId) : undefined,
       health: bay.health,
     };
@@ -426,19 +484,50 @@ function countInScope(bays: MergedGarageBay[], floors: number[] | undefined): nu
  * answering different questions, which reads as a contradiction.
  */
 function computeMetrics(bays: MergedGarageBay[], staleAfterMinutes: number): GarageMetrics {
-  const occupied = bays.filter((bay) => bay.occupied).length;
+  const occupied = bays.filter((bay) => matchesStatus(bay, "occupied", staleAfterMinutes)).length;
   return {
     configured: bays.length,
     live: bays.filter((bay) => bay.foundInLiveApi).length,
     occupied,
-    available: bays.filter((bay) => bay.foundInLiveApi && !bay.occupied && !bay.outOfService && !bay.reserved).length,
+    available: bays.filter((bay) => matchesStatus(bay, "available", staleAfterMinutes)).length,
     reserved: bays.filter((bay) => bay.reserved).length,
-    outOfService: bays.filter((bay) => bay.outOfService).length,
-    staleFeeds: bays.filter((bay) => bay.thumbnailTimestamp && (bay.thumbnailAgeMinutes ?? 0) > staleAfterMinutes).length,
-    missingFeeds: bays.filter((bay) => bay.foundInLiveApi && !bay.thumbnailTimestamp).length,
+    outOfService: bays.filter((bay) => matchesStatus(bay, "out-of-service", staleAfterMinutes)).length,
+    staleFeeds: bays.filter((bay) => isStaleFeed(bay, staleAfterMinutes)).length,
+    missingFeeds: bays.filter((bay) => isMissingFeed(bay)).length,
     offlineSensors: bays.filter((bay) => bay.lastContact && (bay.lastContactAgeMinutes ?? 0) > staleAfterMinutes).length,
     occupancyPercent: bays.length === 0 ? 0 : Math.round((occupied / bays.length) * 100),
   };
+}
+
+function isStaleFeed(bay: MergedGarageBay, staleAfterMinutes: number): boolean {
+  return Boolean(bay.thumbnailTimestamp) && (bay.thumbnailAgeMinutes ?? 0) > staleAfterMinutes;
+}
+
+function isMissingFeed(bay: MergedGarageBay): boolean {
+  return bay.foundInLiveApi && !bay.thumbnailTimestamp;
+}
+
+function feedStateOf(bay: MergedGarageBay, staleAfterMinutes: number): GarageBayResult["feedState"] {
+  if (bay.thumbnailTimestamp == null) return "missing";
+  return (bay.thumbnailAgeMinutes ?? 0) > staleAfterMinutes ? "stale" : "fresh";
+}
+
+/**
+ * Whether a bay is counted by a dashboard tile. The single definition behind
+ * both the tile counters in `computeMetrics` and the drill-down list, so the
+ * two can never disagree.
+ */
+function matchesStatus(bay: MergedGarageBay, status: GarageStatus, staleAfterMinutes: number): boolean {
+  switch (status) {
+    case "available":
+      return bay.foundInLiveApi && !bay.occupied && !bay.outOfService && !bay.reserved;
+    case "occupied":
+      return bay.occupied;
+    case "stale-or-missing":
+      return isStaleFeed(bay, staleAfterMinutes) || isMissingFeed(bay);
+    case "out-of-service":
+      return bay.outOfService;
+  }
 }
 
 /**

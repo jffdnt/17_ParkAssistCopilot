@@ -2,9 +2,9 @@
 
 ## Delivery paths
 
-- **Microsoft 365 Copilot primary pilot:** `copilotComponent/` supplies four SPFx Copilot UX components that call the Entra-protected `/api/*` endpoints with the signed-in user's delegated token. They render the live dashboard and camera previews inline, can refresh in place, and can send a follow-up prompt to narrate the published dashboard context.
+- **Microsoft 365 Copilot primary pilot:** `copilotComponent/` is a hybrid agent. Four OpenAPI functions call the API-key-protected `/api/plugin/*` endpoints through Microsoft's tenant- and app-scoped Enterprise Token Store registration so the model receives same-turn facts. Four matching SPFx Copilot UX components call the Entra-protected `/api/*` endpoints with the signed-in user's delegated token to render dashboards and camera previews inline, refresh in place, and send a follow-up prompt to narrate published dashboard context.
 - **Teams and text fallback:** Copilot Studio calls the Streamable HTTP MCP endpoint through a delegated OAuth connection. The model receives text and structured content in the same turn. This route is deliberately text-first because the Copilot Studio MCP bridge does not render the MCP Apps React UI in the current deployment.
-- **Legacy:** `appPackage/` contains the superseded direct MCP-plugin experiment. Its `OAuthPluginVault` flow did not work reliably in this tenant and is not the active route.
+- **Removed:** an earlier direct MCP-plugin experiment (`appPackage/`, using `OAuthPluginVault`) never worked reliably in this tenant and has been deleted; see [release-history.md](release-history.md) for why.
 
 ## Source alignment
 
@@ -65,3 +65,9 @@ Each MCP tool returns:
 The single-file widget is bundled into `dist/widget/mcp-app.html`, uses Fluent UI v9 themes, honors reduced motion, and requests a fresh tool result through the MCP Apps bridge when the user selects Refresh.
 
 The Copilot UX components consume the same `GarageToolResult`-shaped JSON through `/api/overview`, `/api/available-spaces`, `/api/plate-search`, and `/api/stale-feeds`. They publish the displayed facts back to Copilot as model context. The host supplies that context on the next model turn; the dashboard's **Summarize** action creates that turn for the user.
+
+Each dashboard counter (Available, Occupied, Stale or missing feeds, Out of service) is a button. Selecting one calls the Entra-protected `/api/status-detail?status=available|occupied|stale-or-missing|out-of-service` route, which returns every bay in that status grouped by floor (`GarageStatusDetail` in `src/shared/contracts.ts`). The tile counters and the drill-down share `matchesStatus` in `parking-data.ts`, so a drill-down from the same snapshot always totals to its tile. Responses are unpaged for complete floor counts but intentionally omit camera URLs. When a user opens a space, the component calls Entra-protected `/api/camera-preview-url?bayId=…` to obtain a fresh short-lived signed URL, so an open after the original drill-down has been idle still renders its preview. Full license plates are included only for occupied spaces; all other status responses omit them.
+
+The open drill-down is included with the dashboard in published model context. It contains complete garage-wide floor, category, and space-type counts plus current filters, at most 12 visible spaces with an explicit truncation notice, and the selected space. The 12-space limit keeps the context within the Copilot bridge payload limit. Occupied context includes the displayed full plates for those bounded spaces; other status contexts omit plates. `drilldownModel.ts` supplies both the rendered-filter logic and this context, excluding signed camera URLs. A 400 ms debounce prevents rapid filter updates from flooding the host; **Ask Copilot** flushes the pending context before sending its follow-up message.
+
+The OpenAPI plugin consumes sanitized `GarageToolResult`-shaped JSON through `/api/plugin/overview`, `/api/plugin/available-spaces`, `/api/plugin/plate-search`, and `/api/plugin/stale-feeds`. These responses intentionally omit `imageUrl` and `adaptiveCard`: the model gets only facts, while camera bytes remain behind Entra-protected SPFx calls and signed short-lived proxy URLs.

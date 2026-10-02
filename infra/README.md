@@ -9,6 +9,7 @@ Use `scripts/deploy-azure.ps1` from the repository root. The script provisions t
 
 ```powershell
 $env:PARKASSIST_CAMERA_SIGNING_SECRET = '<random 32+ character value>'
+$env:PARKASSIST_PLUGIN_API_KEY = '<a different random 32+ character value>'
 ./scripts/deploy-azure.ps1 `
   -ResourceGroup rg-parkassist-prod `
   -Location eastus `

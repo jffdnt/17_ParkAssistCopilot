@@ -39,6 +39,7 @@ export const config = {
   entraClientId: process.env.ENTRA_CLIENT_ID,
   entraAllowedAudiences: listFromEnv("ENTRA_ALLOWED_AUDIENCES", []),
   entraRequiredScope: process.env.ENTRA_REQUIRED_SCOPE ?? "access_as_user",
+  pluginApiKey: process.env.PLUGIN_API_KEY,
   cameraSigningSecret: process.env.CAMERA_SIGNING_SECRET ?? "local-development-only-change-me",
   cameraUrlTtlSeconds: integerFromEnv("CAMERA_URL_TTL_SECONDS", 300, 30, 3_600),
   sharePointSiteUrl: process.env.SHAREPOINT_SITE_URL,
@@ -67,6 +68,10 @@ if (config.authMode === "api-key" && !config.mcpApiKey) {
 
 if (config.authMode === "entra" && (!config.entraTenantId || !config.entraClientId)) {
   throw new Error("ENTRA_TENANT_ID and ENTRA_CLIENT_ID are required when AUTH_MODE=entra.");
+}
+
+if (isProduction && (!config.pluginApiKey || Buffer.byteLength(config.pluginApiKey, "utf8") < 32)) {
+  throw new Error("PLUGIN_API_KEY must be set to a random value of at least 32 bytes in production.");
 }
 
 if (

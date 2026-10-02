@@ -224,4 +224,41 @@ describe("parking data tools", () => {
       { floor: 2, count: 0, configured: 2 },
     ]);
   });
+
+  it("drills into each dashboard tile with counts that match the tile", async () => {
+    const overview = await service.getOverview();
+    const cases = [
+      ["available", overview.metrics.available, ["101"]],
+      ["occupied", overview.metrics.occupied, ["202"]],
+      ["stale-or-missing", overview.metrics.staleFeeds + overview.metrics.missingFeeds, ["202", "203"]],
+      ["out-of-service", overview.metrics.outOfService, ["203"]],
+    ] as const;
+
+    for (const [status, tileValue, spaces] of cases) {
+      const detail = await service.getStatusDetail(status);
+      expect(detail.total).toBe(tileValue);
+      expect(detail.floors.flatMap((floor) => floor.spaces.map((space) => space.spaceNumber))).toEqual(spaces);
+      // Every mapped floor is present so the drill-down can show "0 of N".
+      expect(detail.floors.map((floor) => [floor.floor, floor.configured])).toEqual([[1, 1], [2, 2], [3, 1]]);
+    }
+  });
+
+  it("returns full plates only in the Entra-protected occupied drill-down", async () => {
+    const occupied = await service.getStatusDetail("occupied");
+    const space = occupied.floors.find((floor) => floor.floor === 2)!.spaces[0]!;
+    expect(space.parkedMinutes).toBeGreaterThanOrEqual(89);
+    expect(space.feedState).toBe("stale");
+    expect(space.imageUrl).toBeUndefined();
+    expect(space.plateDisplay).toBe("ABC 123");
+
+    const stale = await service.getStatusDetail("stale-or-missing");
+    expect(stale.floors.flatMap((floor) => floor.spaces.map((entry) => entry.feedState))).toEqual(["stale", "missing"]);
+    expect(stale.floors.flatMap((floor) => floor.spaces).every((entry) => entry.parkedMinutes === undefined)).toBe(true);
+    expect(JSON.stringify(stale)).not.toContain("ABC");
+  });
+
+  it("issues a fresh signed preview URL only for configured bays", () => {
+    expect(service.getCameraPreviewUrl("b2")).toContain("/api/cameras/b2");
+    expect(() => service.getCameraPreviewUrl("unknown")).toThrow("unknown bay");
+  });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  garageStatus,
   integerList,
   optionalInteger,
   plateQuery,
@@ -13,9 +14,13 @@ describe("component REST request validation", () => {
     expect(() => optionalInteger("25", "limit", { min: 1, max: 24 })).toThrow("limit must be between 1 and 24");
   });
 
-  it("parses, deduplicates, and bounds floor lists", () => {
-    expect(integerList("9,7,9")).toEqual([9, 7]);
+  it("parses ranges and lists, then deduplicates, sorts, and bounds them", () => {
+    expect(integerList("9,7,9")).toEqual([7, 9]);
+    expect(integerList("7-9")).toEqual([7, 8, 9]);
+    expect(integerList("9 through 7")).toEqual([7, 8, 9]);
+    expect(integerList("2, 7–9")).toEqual([2, 7, 8, 9]);
     expect(() => integerList("7,bad")).toThrow(RequestValidationError);
+    expect(() => integerList("7-12")).toThrow("floors must contain values between 1 and 11");
     expect(() => integerList("12")).toThrow("floors must contain values between 1 and 11");
   });
 
@@ -23,5 +28,11 @@ describe("component REST request validation", () => {
     expect(plateQuery(" AB-123 ")).toBe("AB-123");
     expect(() => plateQuery("---")).toThrow(RequestValidationError);
     expect(() => plateQuery("A".repeat(17))).toThrow(RequestValidationError);
+  });
+
+  it("accepts only the four dashboard statuses", () => {
+    expect(garageStatus("stale-or-missing")).toBe("stale-or-missing");
+    expect(() => garageStatus("reserved")).toThrow(RequestValidationError);
+    expect(() => garageStatus(undefined)).toThrow("status must be one of");
   });
 });

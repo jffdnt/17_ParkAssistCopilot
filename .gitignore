@@ -1,7 +1,6 @@
 node_modules/
 dist/
 coverage/
-appPackage/build/
 .env
 .env.local
 .DS_Store
@@ -10,3 +9,10 @@ appPackage/build/
 .agents/
 .claude/
 .codex/
+
+# Compiled ARM templates (generated from the .bicep sources via `az bicep build`)
+infra/foundation.json
+infra/container-app.json
+
+# Azure deployment runtime state (deployment-plan.md is tracked as the deployment source of truth)
+.azure/validate-status.json

@@ -15,6 +15,7 @@ param(
   [string] $ImageTag = (Get-Date).ToUniversalTime().ToString('yyyyMMdd-HHmmss'),
   [string] $SharePointSiteUrl = '',
   [string] $CameraSigningSecret = $env:PARKASSIST_CAMERA_SIGNING_SECRET,
+  [string] $PluginApiKey = $env:PARKASSIST_PLUGIN_API_KEY,
   [switch] $WhatIfOnly
 )
 
@@ -28,6 +29,9 @@ if (-not (Get-Command az -ErrorAction SilentlyContinue)) {
 }
 if ([string]::IsNullOrWhiteSpace($CameraSigningSecret) -or $CameraSigningSecret.Length -lt 32) {
   throw 'Set PARKASSIST_CAMERA_SIGNING_SECRET to a random value of at least 32 characters.'
+}
+if ([string]::IsNullOrWhiteSpace($PluginApiKey) -or $PluginApiKey.Length -lt 32) {
+  throw 'Set PARKASSIST_PLUGIN_API_KEY to a random value of at least 32 characters.'
 }
 if ($CorsAllowedOrigins -notmatch '^https://') {
   throw 'CorsAllowedOrigins must contain at least one HTTPS origin.'
@@ -60,6 +64,7 @@ $appParameters = @(
   "entraClientId=$EntraClientId"
   "entraAllowedAudiences=$EntraAllowedAudiences"
   "cameraSigningSecret=$CameraSigningSecret"
+  "pluginApiKey=$PluginApiKey"
   "corsAllowedOrigins=$CorsAllowedOrigins"
   "sharePointSiteUrl=$SharePointSiteUrl"
 )
@@ -72,7 +77,7 @@ if ($WhatIfOnly) {
 
 az deployment group create --name 'parkassist-foundation' --resource-group $ResourceGroup --template-file $foundationTemplate --parameters $foundationParameters --only-show-errors | Out-Null
 
-az acr build --registry $ContainerRegistryName --image "parkassist-mcp:$ImageTag" --file (Join-Path $workspaceRoot 'Dockerfile') $workspaceRoot --only-show-errors
+az acr build --registry $ContainerRegistryName --image "parkassist-mcp:$ImageTag" --file (Join-Path $workspaceRoot 'Dockerfile') $workspaceRoot --no-logs --only-show-errors
 
 $deployment = az deployment group create --name "parkassist-app-$ImageTag" --resource-group $ResourceGroup --template-file $appTemplate --parameters $appParameters --only-show-errors --output json | ConvertFrom-Json
 $outputs = $deployment.properties.outputs

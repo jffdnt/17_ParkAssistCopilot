@@ -6,17 +6,17 @@ The implementation was derived from the data sources and bay map used by Power A
 
 ## What it can answer
 
-| User intent | MCP tool | Result |
+| User intent | Hybrid tool | Result |
 | --- | --- | --- |
-| “Which cameras have stale feeds?” | `get-stale-camera-feeds` | Stale/missing bays, timestamps, sensor issues, and short-lived camera previews |
-| “What spaces are available on floor 5?” | `find-available-spaces` | Live vacant, in-service spaces filtered by floor/designation |
-| “Where is plate ABC123?” | `search-license-plate` | Occupied bay matches; authorized partial searches return the full matching plate |
-| “How is the garage looking?” | `garage-overview` | Occupancy, availability, out-of-service, and camera-health metrics |
+| “Which cameras have stale feeds?” | `getStaleCameraFeedsData` + `staleCameraFeeds` | Stale/missing bays, timestamps, sensor issues, and short-lived camera previews |
+| “What spaces are available on floor 5?” | `findAvailableSpacesData` + `availableSpaces` | Live vacant, in-service spaces filtered by floor/designation |
+| “Where is plate ABC123?” | `searchLicensePlateData` + `plateSearch` | Occupied bay matches; authorized partial searches return the full matching plate |
+| “How is the garage looking?” | `garageOverviewData` + `garageOverview` | Occupancy, availability, out-of-service, and camera-health metrics |
 
 ## Architecture
 
 ```text
-Microsoft 365 Copilot ─┬─ text-data MCP tools (same-turn answer) ────────┐
+Microsoft 365 Copilot ─┬─ API plugin (same-turn text/data) ──────────────┐
                        └─ SPFx Copilot UX tools (dashboard/images) ──────┤
 Teams / text fallback ─ Copilot Studio ─ Power Platform MCP connection ─┤
                                                                          ▼
@@ -76,6 +76,7 @@ Copy `.env.example` to `.env`. Important production settings:
 | `STALE_AFTER_MINUTES` | Default stale-camera threshold; defaults to `15` |
 | `AUTH_MODE` | `none` for local only, `api-key` for Copilot Studio testing, `entra` for production SSO |
 | `ENTRA_ALLOWED_AUDIENCES` | Additional comma-separated Entra token audiences, including the Developer Portal SSO Application ID URI used by the hybrid MCP plugin |
+| `PLUGIN_API_KEY` | At least 32 random characters for the Microsoft 365 text-data API plugin; store only in Azure Container Apps and the Microsoft Enterprise Token Store |
 | `CAMERA_SIGNING_SECRET` | At least 32 random characters used to sign temporary preview URLs |
 | `RATE_LIMIT_WINDOW_SECONDS` / `RATE_LIMIT_MAX_REQUESTS` | Per-replica request safety limit; defaults to 300 requests per minute per client IP |
 | `TRUST_PROXY_HOPS` | Trusted reverse-proxy hops used to resolve client IPs; defaults to `0`, while the Container Apps template sets `1` |
@@ -94,14 +95,17 @@ docker run --rm -p 3000:3000 --env-file .env parkassist-copilot
 
 The service exposes:
 
+- `GET /` — lightweight service-discovery response used by Microsoft 365 connectivity probes
 - `GET /health` — health and configured-space count
 - `GET /ready` — readiness check against the core ParkAssist upstream
 - `POST|GET|DELETE /mcp` — Streamable HTTP MCP endpoint
 - `GET /api/overview|available-spaces|plate-search|stale-feeds` — Entra-protected Copilot Component endpoints
+- `GET /openapi/parkassist-live-data.json` — public OpenAPI contract for the Microsoft 365 text-data plugin
+- `GET /api/plugin/overview|available-spaces|plate-search|stale-feeds` — API-key-protected, model-visible data without camera URLs or card payloads
 - `GET /api/cameras/{bayId}?exp=...&sig=...` — signed image proxy
 - `GET /preview?preview=stale` — local visual-QA fixture
 
-Deploy the container to an HTTPS host such as Azure Container Apps. A production process refuses to start with `AUTH_MODE=none` or with a missing, short, or placeholder camera-signing secret. The deployed Microsoft 365 and Copilot Studio routes use Entra/OAuth for user attribution and Conditional Access.
+Deploy the container to an HTTPS host such as Azure Container Apps. A production process refuses to start with `AUTH_MODE=none`, a missing/short camera-signing secret, or a missing/short plugin API key. SPFx and Copilot Studio use Entra/OAuth; the same Microsoft 365 agent's text-data plugin uses a tenant- and app-scoped Enterprise Token Store key.
 
 For repeatable Azure deployment, start with a no-change preview using [deploy-azure.ps1](scripts/deploy-azure.ps1) and the instructions in [infra/README.md](infra/README.md). The flow creates managed identity and Log Analytics, builds an immutable image tag, and configures separate liveness and readiness probes.
 
@@ -109,11 +113,11 @@ Before a release, run `npm run release:check`. Supply the organization-owned pub
 
 ## Connect to Microsoft 365 Copilot and Teams
 
-For the primary Microsoft 365 experience, build and deploy [copilotComponent](copilotComponent/README.md). It contains four Copilot UX components that call the Entra-protected REST routes and render live dashboards and camera-result grids.
+For the primary Microsoft 365 experience, build and deploy [copilotComponent](copilotComponent/README.md). Its four API-plugin functions provide live facts to the model in the same turn, while four matching Copilot UX components call the Entra-protected REST routes and render live dashboards and camera-result grids.
 
 For Teams or a text-only recovery path, follow [copilot-studio-setup.md](docs/copilot-studio-setup.md). The fallback agent uses the MCP route for same-turn numerical answers and Adaptive Card data where the host supports it; it does not provide the SPFx dashboard.
 
-`appPackage/` is retained as a legacy declarative-agent/MCP-plugin experiment. Its `OAuthPluginVault` route did not reach the server in this tenant and is not the current deployment target.
+An earlier declarative-agent/MCP-plugin experiment (`appPackage/`, using `OAuthPluginVault`) never reliably reached the server in this tenant and has been removed; see [release-history.md](docs/release-history.md) for why it didn't work and what replaced it.
 
 Current Microsoft guidance:
 
@@ -137,13 +141,12 @@ See [security.md](docs/security.md) before enabling production access.
 ## Repository map
 
 ```text
-appPackage/              Legacy declarative-agent/MCP-plugin experiment
 copilotComponent/        Primary M365 pilot: SPFx Copilot UX components
 copilotStudio/           Text-first fallback and Teams route
 connector/               Power Apps custom MCP connector fallback
 docs/                    architecture, security, and setup guidance
 infra/                   Bicep for identity, logs, registry, environment, and Container App
-scripts/                 smoke test, icon generator, package builder
+scripts/                 smoke test, Azure deployment, release metadata/readiness checks
 src/server/              MCP server, auth, live API, Graph, signed images
 src/server/data/         canvas-app-derived 5 Bell bay map
 src/widget/              React 19 + Fluent UI v9 MCP App
