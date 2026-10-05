@@ -14,6 +14,11 @@ param(
   [string] $AcrPullRoleAssignmentName = '',
   [string] $ImageTag = (Get-Date).ToUniversalTime().ToString('yyyyMMdd-HHmmss'),
   [string] $SharePointSiteUrl = '',
+  # Generative UI (/genui). Both empty leaves the feature off; set both to enable it.
+  # The Azure OpenAI account must be in $ResourceGroup: the template grants the app's
+  # identity "Cognitive Services OpenAI User" on it.
+  [string] $AzureOpenAiResource = '',
+  [string] $AzureOpenAiDeployment = '',
   [string] $CameraSigningSecret = $env:PARKASSIST_CAMERA_SIGNING_SECRET,
   [string] $PluginApiKey = $env:PARKASSIST_PLUGIN_API_KEY,
   [switch] $WhatIfOnly
@@ -35,6 +40,11 @@ if ([string]::IsNullOrWhiteSpace($PluginApiKey) -or $PluginApiKey.Length -lt 32)
 }
 if ($CorsAllowedOrigins -notmatch '^https://') {
   throw 'CorsAllowedOrigins must contain at least one HTTPS origin.'
+}
+# Half-configured would deploy with the generative UI silently off (the template keys
+# on the resource name alone) or fail at startup; refuse both.
+if ([string]::IsNullOrWhiteSpace($AzureOpenAiResource) -ne [string]::IsNullOrWhiteSpace($AzureOpenAiDeployment)) {
+  throw 'Set both -AzureOpenAiResource and -AzureOpenAiDeployment, or neither.'
 }
 
 az account show --only-show-errors | Out-Null
@@ -67,6 +77,8 @@ $appParameters = @(
   "pluginApiKey=$PluginApiKey"
   "corsAllowedOrigins=$CorsAllowedOrigins"
   "sharePointSiteUrl=$SharePointSiteUrl"
+  "azureOpenAiResource=$AzureOpenAiResource"
+  "azureOpenAiDeployment=$AzureOpenAiDeployment"
 )
 
 if ($WhatIfOnly) {

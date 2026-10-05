@@ -23,6 +23,8 @@ $env:PARKASSIST_PLUGIN_API_KEY = '<a different random 32+ character value>'
   -WhatIfOnly
 ```
 
+To enable the generative UI (`/genui`), also pass `-AzureOpenAiResource <account-in-the-same-resource-group>` and `-AzureOpenAiDeployment <deployment-name>`. Omit both to leave it off. The template then sets `GENUI_ENABLED`, `AZURE_CLIENT_ID` and the two Azure OpenAI settings, and grants the app's identity **Cognitive Services OpenAI User** on that account. The role can take 5–15 minutes to take effect, so early chat requests may fail with a permission error.
+
 Remove `-WhatIfOnly` only after reviewing the plan. The script expects an authenticated Azure CLI session with rights to create resource-group deployments, build in ACR, and assign `AcrPull`.
 
 `LogAnalyticsWorkspaceName` should name the workspace already connected to an adopted Container Apps environment. `AcrPullRoleAssignmentName` is needed only when adopting an identity whose role assignment was created outside Bicep; new environments can omit it and use the deterministic assignment name.
