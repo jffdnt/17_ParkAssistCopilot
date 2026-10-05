@@ -1,12 +1,15 @@
 import { createMcpExpressApp } from "@modelcontextprotocol/express";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import { createMcpHandler } from "@modelcontextprotocol/server";
-import type { Request, Response } from "express";
+import express, { type Request, type Response } from "express";
 import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { requireMcpAuthorization, requirePluginApiKeyAuthorization } from "./auth.js";
 import { config } from "./config.js";
 import { createParkAssistMcpServer } from "./mcp.js";
-import { resolveWidgetHtmlPath } from "./paths.js";
+import { createGenUiModel } from "./genui/model.js";
+import { createGenUiChatHandler } from "./genui/route.js";
+import { resolveGenUiDirectory, resolveWidgetHtmlPath } from "./paths.js";
 import { FixedWindowRateLimiter, createRateLimitMiddleware } from "./middleware/rate-limit.js";
 import { requestTelemetry } from "./middleware/request-telemetry.js";
 import { toPluginDataResult } from "./plugin-data.js";
@@ -297,6 +300,43 @@ async function main(): Promise<void> {
       includeImage: false,
     })),
   );
+
+  if (config.genUiEnabled) {
+    // Checked at startup in config.ts, so both are set here.
+    const model = createGenUiModel(config.azureOpenAiResource!, config.azureOpenAiDeployment!);
+    const genUiRateLimit = createRateLimitMiddleware(new FixedWindowRateLimiter(
+      config.genUiRateLimitMaxRequests,
+      config.rateLimitWindowSeconds * 1000,
+    ));
+    app.post(
+      "/api/genui/chat",
+      genUiRateLimit,
+      requireMcpAuthorization,
+      createGenUiChatHandler(parking, model, config.garage),
+    );
+
+    // What the page needs to sign in. Identifiers, not secrets. In api-key mode
+    // the browser has no way to hold the key, so the page reports it unusable.
+    app.get("/genui/config.json", (_request: Request, response: Response) => {
+      response.setHeader("Cache-Control", "no-store");
+      response.json(config.authMode === "entra"
+        ? {
+            authMode: "entra",
+            tenantId: config.entraTenantId,
+            clientId: config.entraClientId,
+            scope: `api://${config.entraClientId}/${config.entraRequiredScope}`,
+          }
+        : { authMode: config.authMode });
+    });
+
+    const genUiDirectory = resolveGenUiDirectory();
+    if (genUiDirectory) {
+      app.get("/genui", (_request: Request, response: Response) => response.sendFile(path.join(genUiDirectory, "genui.html")));
+      app.use("/genui", express.static(genUiDirectory, { index: false }));
+    } else {
+      console.warn("GENUI_ENABLED is set but the page is not built; run `npm run build:genui`.");
+    }
+  }
 
   app.all("/mcp", requireMcpAuthorization, (request: Request, response: Response) => {
     void nodeHandler(request, response, request.body);

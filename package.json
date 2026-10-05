@@ -8,7 +8,7 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "build": "npm run clean && npm run build:widget && npm run build:server",
+    "build": "npm run clean && npm run build:widget && npm run build:genui && npm run build:server",
     "build:widget": "cross-env INPUT=mcp-app.html vite build",
     "build:server": "tsc -p tsconfig.server.json",
     "clean": "rimraf dist",
@@ -19,10 +19,14 @@
     "release:metadata": "node scripts/set-release-metadata.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
+    "build:genui": "cross-env INPUT=genui.html vite build"
   },
   "dependencies": {
+    "@ai-sdk/azure": "^4.0.90",
+    "@ai-sdk/react": "^4.0.130",
     "@azure/identity": "^4.12.0",
+    "@azure/msal-browser": "^5.24.0",
     "@fluentui/react-components": "^9.72.10",
     "@fluentui/react-icons": "^2.0.319",
     "@modelcontextprotocol/client": "2.0.0",
@@ -31,11 +35,14 @@
     "@modelcontextprotocol/ext-apps": "2.0.0",
     "@modelcontextprotocol/node": "2.0.0",
     "@modelcontextprotocol/server": "2.0.0",
+    "ai": "^7.0.127",
     "dotenv": "^17.2.2",
     "express": "^5.1.0",
     "jose": "^6.1.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-is": "^19.3.0",
+    "recharts": "^3.10.1",
     "zod": "^4.2.0"
   },
   "devDependencies": {

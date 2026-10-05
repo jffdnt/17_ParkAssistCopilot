@@ -79,6 +79,34 @@ export class ParkingDataService {
     return this.options.mapRows.some((row) => row.bayId === bayId);
   }
 
+  /**
+   * A copy of this service pinned to a single upstream read, for answering
+   * several queries as one consistent picture (a generative UI turn).
+   *
+   * The upstream feed flaps between calls, and the shared cache can expire
+   * between two queries, so an overview tile and a list beside it could
+   * otherwise come from different reads. Concurrent queries also share the one
+   * in-flight request instead of each downloading the full payload. The read
+   * still goes through this instance's cache, so pinning adds no upstream load.
+   * A failed read is not pinned: the next query retries.
+   */
+  public forTurn(): ParkingDataService {
+    const turn = new ParkingDataService(this.options);
+    let liveBays: Promise<ParkAssistBay[]> | undefined;
+    turn.getLiveBays = () =>
+      (liveBays ??= this.getLiveBays().catch((error: unknown) => {
+        liveBays = undefined;
+        throw error;
+      }));
+    return turn;
+  }
+
+  /** Space number and floor of a configured bay, or undefined for an unknown id. */
+  public describeBay(bayId: string): { spaceNumber: string; floor: number } | undefined {
+    const row = this.options.mapRows.find((entry) => entry.bayId === bayId);
+    return row ? { spaceNumber: row.spaceNumber, floor: row.floor } : undefined;
+  }
+
   /** Issue a short-lived preview URL after the signed-in user opens one space. */
   public getCameraPreviewUrl(bayId: string): string {
     if (!this.hasConfiguredBay(bayId)) {

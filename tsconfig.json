@@ -17,5 +17,5 @@
     "jsx": "react-jsx",
     "types": ["node", "vite/client"]
   },
-  "include": ["src/widget", "src/shared", "vite.config.ts"]
+  "include": ["src/widget", "src/genui", "src/shared", "vite.config.ts"]
 }
