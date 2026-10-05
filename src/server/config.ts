@@ -50,6 +50,13 @@ export const config = {
   trustProxyHops: integerFromEnv("TRUST_PROXY_HOPS", 0, 0, 5),
   rateLimitWindowSeconds: integerFromEnv("RATE_LIMIT_WINDOW_SECONDS", 60, 1, 3_600),
   rateLimitMaxRequests: integerFromEnv("RATE_LIMIT_MAX_REQUESTS", 300, 1, 100_000),
+  // Generative UI experiment: an Azure OpenAI model composes garage views from
+  // the component allowlist in src/shared/genui. Off unless explicitly enabled.
+  genUiEnabled: process.env.GENUI_ENABLED === "true",
+  azureOpenAiResource: process.env.AZURE_OPENAI_RESOURCE,
+  azureOpenAiDeployment: process.env.AZURE_OPENAI_DEPLOYMENT,
+  // Each chat turn is several model calls, so it gets a far tighter budget than /api lookups.
+  genUiRateLimitMaxRequests: integerFromEnv("GENUI_RATE_LIMIT_MAX_REQUESTS", 20, 1, 1_000),
 } as const;
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -60,6 +67,10 @@ const insecureCameraSecrets = new Set([
 
 if (isProduction && config.authMode === "none") {
   throw new Error("AUTH_MODE=none is not allowed when NODE_ENV=production.");
+}
+
+if (config.genUiEnabled && (!config.azureOpenAiResource || !config.azureOpenAiDeployment)) {
+  throw new Error("AZURE_OPENAI_RESOURCE and AZURE_OPENAI_DEPLOYMENT are required when GENUI_ENABLED=true.");
 }
 
 if (config.authMode === "api-key" && !config.mcpApiKey) {

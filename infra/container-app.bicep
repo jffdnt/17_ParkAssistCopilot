@@ -26,6 +26,10 @@ param minReplicas int = 1
 param maxReplicas int = 2
 param rateLimitWindowSeconds int = 60
 param rateLimitMaxRequests int = 300
+@description('Azure OpenAI account (in this resource group) for the generative UI experiment. Empty leaves the feature off.')
+param azureOpenAiResource string = ''
+@description('Model deployment name in that account.')
+param azureOpenAiDeployment string = ''
 
 param tags object = {
   application: 'ParkAssist Copilot'
@@ -60,6 +64,32 @@ var optionalSharePointEnvironment = empty(sharePointSiteUrl) ? [] : [
     value: identity.properties.clientId
   }
 ]
+
+var genUiEnabled = !empty(azureOpenAiResource)
+// DefaultAzureCredential needs AZURE_CLIENT_ID to pick the user-assigned identity.
+// The SharePoint block already sets it; add it here only when that block is off.
+var optionalGenUiEnvironment = genUiEnabled ? concat([
+  { name: 'GENUI_ENABLED', value: 'true' }
+  { name: 'AZURE_OPENAI_RESOURCE', value: azureOpenAiResource }
+  { name: 'AZURE_OPENAI_DEPLOYMENT', value: azureOpenAiDeployment }
+], empty(sharePointSiteUrl) ? [
+  { name: 'AZURE_CLIENT_ID', value: identity.properties.clientId }
+] : []) : []
+
+resource openAi 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = if (genUiEnabled) {
+  name: genUiEnabled ? azureOpenAiResource : 'unused'
+}
+
+// Cognitive Services OpenAI User: call deployments with an Entra token, no keys.
+resource openAiUser 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (genUiEnabled) {
+  name: guid(resourceGroup().id, azureOpenAiResource, identity.id, '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+  scope: openAi
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+    principalId: identity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
 
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: containerAppName
@@ -134,7 +164,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'TRUST_PROXY_HOPS', value: '1' }
             { name: 'RATE_LIMIT_WINDOW_SECONDS', value: string(rateLimitWindowSeconds) }
             { name: 'RATE_LIMIT_MAX_REQUESTS', value: string(rateLimitMaxRequests) }
-          ], optionalSharePointEnvironment)
+          ], optionalSharePointEnvironment, optionalGenUiEnvironment)
           probes: [
             {
               type: 'Liveness'

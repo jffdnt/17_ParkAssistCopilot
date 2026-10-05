@@ -8,13 +8,18 @@ if (!input) {
   throw new Error("INPUT must point to the MCP App HTML entry file.");
 }
 
+// The generative UI page is an ordinary multi-file site served by Express at
+// /genui. The MCP App widget must stay a single inlined HTML file.
+const isGenUi = input === "genui.html";
+
 export default defineConfig({
-  plugins: [react(), viteSingleFile()],
+  base: isGenUi ? "/genui/" : "/",
+  plugins: isGenUi ? [react()] : [react(), viteSingleFile()],
   build: {
     cssMinify: true,
-    emptyOutDir: false,
+    emptyOutDir: isGenUi,
     minify: true,
-    outDir: "dist/widget",
+    outDir: isGenUi ? "dist/genui" : "dist/widget",
     rollupOptions: { input },
   },
 });
