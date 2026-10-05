@@ -80,7 +80,7 @@ const answerSpec = parse({
           { type: "kpi", source: "garage", metric: "available" },
         ],
       },
-      { type: "callout", tone: "info", text: "Right now: {{avail.totalMatches}}, out of {{avail.configured}}." },
+      { type: "callout", tone: "info", text: "Free spaces on floors 7-9 right now." },
       { type: "barChart", source: "avail", dataset: "floorBreakdown" },
       { type: "bayTable", source: "avail" },
     ],
@@ -117,14 +117,14 @@ describe("generative UI spec", () => {
           { type: "kpi", source: "missing", metric: "available" },
           { type: "kpi", source: "o", metric: "totalMatches" },
           { type: "plateCard", source: "o" },
-          { type: "narrative", text: "{{o.bogus}} spaces" },
+          { type: "callout", tone: "info", text: "{{o.bogus}} spaces" },
         ],
       },
     }));
     expect(problems.join("\n")).toMatch(/"missing", which is not in `sources`/);
     expect(problems.join("\n")).toMatch(/"totalMatches" is not available from a overview source/);
     expect(problems.join("\n")).toMatch(/plateCard needs a plateSearch source/);
-    expect(problems.join("\n")).toMatch(/\{\{o\.bogus\}\}: "bogus" is not available.*use a barChart or donutChart with a dataset/);
+    expect(problems.join("\n")).toMatch(/"\{\{o\.bogus\}\} spaces" contains a \{\{placeholder\}\}/);
     // An unused source is tolerated, not rejected: hydrate drops it.
     expect(problems.join("\n")).not.toMatch(/unused/);
     expect(problems).toHaveLength(4);
@@ -144,10 +144,10 @@ describe("generative UI spec", () => {
   });
 
   it("enforces the depth and leaf limits", () => {
-    const deep = { type: "stack", children: [{ type: "stack", children: [{ type: "stack", children: [{ type: "stack", children: [{ type: "narrative", text: "x" }] }] }] }] };
+    const deep = { type: "stack", children: [{ type: "stack", children: [{ type: "stack", children: [{ type: "stack", children: [{ type: "callout", tone: "info", text: "x" }] }] }] }] };
     expect(checkSpec(parse({ title: "Deep", sources: [], root: deep })).join()).toMatch(/nested 5 deep/);
 
-    const wide = { type: "stack", children: Array.from({ length: 12 }, () => ({ type: "stack", children: [{ type: "narrative", text: "x" }, { type: "narrative", text: "y" }] })) };
+    const wide = { type: "stack", children: Array.from({ length: 12 }, () => ({ type: "stack", children: [{ type: "callout", tone: "info", text: "x" }, { type: "callout", tone: "info", text: "y" }] })) };
     expect(checkSpec(parse({ title: "Wide", sources: [], root: wide })).join()).toMatch(/24 leaves; the limit is 12/);
   });
 
@@ -175,8 +175,8 @@ describe("generative UI hydration", () => {
     // b701 and b702 are free (a stale camera does not make a space unavailable); b801 is out of service, b901 occupied.
     expect(expected.totalMatches).toBe(2);
     expect(garageKpi).toMatchObject({ kind: "metric", value: overview.metrics.available });
-    // Tokens carry their own noun and scope, so a number cannot be silently pinned on the wrong subject.
-    expect(callout).toEqual({ kind: "text", text: `Right now: ${expected.totalMatches} available spaces (floors 7–9), out of ${expected.metricsInScope!.configured} configured spaces (floors 7–9).` });
+    // Callouts carry no numbers, so they pass through as written.
+    expect(callout).toEqual({ kind: "text", text: "Free spaces on floors 7-9 right now." });
     expect(chart).toMatchObject({
       kind: "series",
       total: expected.totalMatches,
@@ -327,15 +327,11 @@ describe("generative UI fixes from the first model eval", () => {
     const view = await hydrate(parse({
       title: "Occupied",
       sources: [{ id: "occ", query: "statusDetail", status: "occupied" }],
-      root: { type: "stack", children: [
-        { type: "kpi", source: "occ", metric: "occupied" },
-        { type: "narrative", text: "Parked now: {{occ.occupied}}." },
-      ] },
+      root: { type: "kpi", source: "occ", metric: "occupied" },
     }), depsFor(new TurnSnapshot(parking), parking));
     const overview = await parking.getOverview();
-    const [kpi, text] = leaves(view.root).map((leaf) => ("resolved" in leaf ? leaf.resolved : undefined));
-    expect(kpi).toMatchObject({ kind: "metric", value: overview.metrics.occupied });
-    expect(text).toEqual({ kind: "text", text: `Parked now: ${overview.metrics.occupied} occupied spaces (whole garage).` });
+    const [kpi] = leaves(view.root).map((leaf) => ("resolved" in leaf ? leaf.resolved : undefined));
+    expect(kpi).toMatchObject({ kind: "metric", value: overview.metrics.occupied, label: "Occupied spaces · whole garage" });
   });
 
   it("drops unused sources instead of fetching or reporting them", async () => {
@@ -347,16 +343,15 @@ describe("generative UI fixes from the first model eval", () => {
       sources: [
         { id: "avail", query: "availableSpaces" },
         { id: "unused", query: "statusDetail", status: "occupied" },
-        { id: "viaText", query: "overview" },
+        { id: "garage", query: "overview" },
       ],
       root: { type: "stack", children: [
         { type: "kpi", source: "avail", metric: "totalMatches" },
-        { type: "callout", tone: "info", text: "{{viaText.occupancyPercent}} occupied." },
+        { type: "occupancyGauge", source: "garage" },
       ] },
     }), { fetchSource: (source) => { fetched.push(source.id); return snapshot.fetch(source); }, describeBay: (id) => parking.describeBay(id) });
-    // A source bound only through a {{token}} still counts as used.
-    expect(fetched.sort()).toEqual(["avail", "viaText"]);
-    expect(view.sources.map((source) => source.id)).toEqual(["avail", "viaText"]);
+    expect(fetched.sort()).toEqual(["avail", "garage"]);
+    expect(view.sources.map((source) => source.id)).toEqual(["avail", "garage"]);
   });
 });
 
@@ -379,7 +374,6 @@ describe("generative UI fixes from the live walkthrough", () => {
     expect(strayNumbers("Floor 7 has the most stale cameras")).toEqual([]);
     expect(strayNumbers("Floors 7-9 and floor 3 compared")).toEqual([]);
     expect(strayNumbers("Plate ABC1234 is in space 744, bay 7B")).toEqual([]);
-    expect(strayNumbers("Right now {{s.totalMatches}} need attention")).toEqual([]);
     expect(strayNumbers("Floor 7: 47 stale")).toEqual(["47"]);
     expect(strayNumbers("Occupancy is 4%")).toEqual(["4%"]);
 
@@ -387,7 +381,7 @@ describe("generative UI fixes from the live walkthrough", () => {
       [{ id: "s", query: "staleFeeds" }],
       { type: "section", title: "Top 3 floors", children: [
         { type: "barChart", source: "s", dataset: "floorBreakdown", title: "47 on floor 7" },
-        { type: "narrative", text: "Floor three with 37 and floor one with 29." },
+        { type: "callout", tone: "info", text: "Floor three with 37 and floor one with 29." },
       ] },
       "Parked from 100 to 41,942 minutes",
     ));
@@ -395,22 +389,25 @@ describe("generative UI fixes from the live walkthrough", () => {
       "View title",
       "root title",
       "root.children[0] (barChart) title",
-      "root.children[1] (narrative)",
+      "root.children[1] (callout)",
     ]);
   });
 
-  it("rejects malformed tokens instead of showing them raw", () => {
+  it("fix 4: rejects any placeholder in text, so none can reach the screen or be misattributed", () => {
     const problems = checkSpec(single(
-      [{ id: "occ", query: "statusDetail", status: "occupied" }],
-      { type: "narrative", text: "Range {{occ.stats.parkedMinutes.min}} to {{ occ.occupied }}, and {{broken." },
+      [{ id: "s", query: "staleFeeds" }],
+      { type: "stack", title: "Worst: {{s.totalMatches}}", children: [
+        { type: "barChart", source: "s", dataset: "floorBreakdown" },
+        // Both walkthrough failures: a total pinned on one floor, and an unfillable dotted path.
+        { type: "callout", tone: "info", text: "The busiest floor is {{s.totalMatches}}." },
+        { type: "callout", tone: "info", text: "Longest {{occ.stats.parkedMinutes.max}}, and {{broken." },
+      ] },
     ));
-    // The dotted path and the unclosed token are rejected; the spaced but valid token is accepted.
-    expect(problems).toHaveLength(2);
-    expect(problems[0]).toMatch(/"\{\{occ\.stats\.parkedMinutes\.min\}\}" is not a valid token.*closing reply/);
-    expect(problems[1]).toMatch(/"\{\{broken\." is not a valid token/);
+    expect(problems).toHaveLength(3);
+    for (const problem of problems) expect(problem).toMatch(/contains a \{\{placeholder\}\}/);
   });
 
-  it("fixes 3 and 4: tiles and tokens are named by the server, with their scope", async () => {
+  it("fix 3: tiles are named by the server, with their scope", async () => {
     const { parking } = createGarage();
     const view = await hydrate(single(
       [{ id: "s", query: "staleFeeds", floors: [7, 9] }, { id: "o", query: "overview" }],
@@ -418,15 +415,52 @@ describe("generative UI fixes from the live walkthrough", () => {
         { type: "kpi", source: "s", metric: "totalMatches" },
         { type: "kpi", source: "s", metric: "staleFeeds" },
         { type: "occupancyGauge", source: "o" },
-        // The walkthrough's misattribution, now self-evidently about the whole scope.
-        { type: "narrative", text: "The biggest cluster is on floor seven with {{s.totalMatches}}." },
       ] },
     ), depsFor(new TurnSnapshot(parking), parking));
-    const [total, staleOnly, gauge, text] = leaves(view.root).map((leaf) => ("resolved" in leaf ? leaf.resolved : undefined));
+    const [total, staleOnly, gauge] = leaves(view.root).map((leaf) => ("resolved" in leaf ? leaf.resolved : undefined));
     expect(total).toMatchObject({ label: "Stale or missing camera feeds · floors 7, 9" });
     // Distinct from the stale-or-missing total: this is the counter that was mislabelled.
     expect(staleOnly).toMatchObject({ label: "Stale camera feeds · floors 7, 9" });
     expect(gauge).toMatchObject({ label: "Occupancy · whole garage" });
-    expect(text).toMatchObject({ text: expect.stringMatching(/with \d+ stale or missing camera feeds \(floors 7, 9\)\.$/) });
+  });
+});
+
+describe("generative UI: stat tile and narrative removal", () => {
+  const single = (sources: unknown[], root: unknown) => parse({ title: "View", sources, root });
+
+  it("computes stats over every bay in the drill-down, with server labels", async () => {
+    const { parking } = createGarage();
+    const view = await hydrate(single(
+      [{ id: "occ", query: "statusDetail", status: "occupied" }, { id: "stale", query: "statusDetail", status: "stale-or-missing" }],
+      { type: "row", children: [
+        { type: "stat", source: "occ", measure: "timeParked", stat: "longest" },
+        { type: "stat", source: "occ", measure: "timeParked", stat: "shortest" },
+        { type: "stat", source: "stale", measure: "cameraAge", stat: "longest" },
+      ] },
+    ), depsFor(new TurnSnapshot(parking), parking));
+    const [longest, shortest, oldest] = leaves(view.root).map((leaf) => ("resolved" in leaf ? leaf.resolved : undefined));
+    // Only b102 has an entry time (90 minutes ago); b901's is unknown, so it is left out, not counted as zero.
+    expect(longest).toMatchObject({ kind: "duration", minutes: 90, of: 1, label: "Longest time parked · occupied spaces" });
+    expect(shortest).toMatchObject({ minutes: 90, of: 1 });
+    // b702's feed is 600 minutes old; b801 has no telemetry, so no age.
+    expect(oldest).toMatchObject({ kind: "duration", minutes: 600, of: 1, label: "Longest camera image age · stale or missing feeds" });
+    expect(summarizeView(view)).toMatch(/Longest time parked · occupied spaces: 1h 30m \(90 minutes, over 1 bays\)/);
+  });
+
+  it("allows stats only on unpaged drill-downs, and time parked only on occupied", () => {
+    expect(checkSpec(single([{ id: "a", query: "availableSpaces" }], { type: "stat", source: "a", measure: "cameraAge", stat: "median" })).join())
+      .toMatch(/needs a statusDetail source, which covers every bay; availableSpaces is paged/);
+    expect(checkSpec(single([{ id: "s", query: "statusDetail", status: "stale-or-missing" }], { type: "stat", source: "s", measure: "timeParked", stat: "median" })).join())
+      .toMatch(/timeParked needs statusDetail with status "occupied"/);
+    expect(checkSpec(single([{ id: "o", query: "statusDetail", status: "occupied" }], { type: "stat", source: "o", measure: "timeParked", stat: "median" }))).toEqual([]);
+  });
+
+  it("accepts a plain callout and no longer accepts narratives", () => {
+    const sources = [{ id: "o", query: "overview" }];
+    expect(checkSpec(single(sources, { type: "stack", children: [
+      { type: "kpi", source: "o", metric: "available" },
+      { type: "callout", tone: "info", text: "Floor 7 has the most stale cameras." },
+    ] }))).toEqual([]);
+    expect(UiSpecSchema.safeParse({ title: "x", sources, root: { type: "narrative", text: "Hello." } }).success).toBe(false);
   });
 });

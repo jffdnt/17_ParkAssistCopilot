@@ -27,6 +27,7 @@ export function followUpBinding(leaf: HydratedLeaf, sources: readonly Source[]):
   const binding: FollowUpBinding = { component: leaf.type };
   if ("metric" in leaf) binding.metric = leaf.metric;
   if ("dataset" in leaf) binding.dataset = leaf.dataset;
+  if (leaf.type === "stat") binding.metric = `${leaf.stat} ${leaf.measure}`;
   if ("source" in leaf) {
     const source = sources.find((entry) => entry.id === leaf.source);
     if (source) {

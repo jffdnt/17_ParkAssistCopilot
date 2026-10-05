@@ -1,3 +1,4 @@
+import { formatDuration } from "../status-categories.js";
 import { isLayout, type HydratedNode, type HydratedSpec } from "./spec.js";
 
 /**
@@ -20,6 +21,13 @@ export function summarizeView(view: HydratedSpec): string {
     switch (resolved.kind) {
       case "metric":
         lines.push(`- ${resolved.label}: ${resolved.value}${resolved.unit ?? ""}`);
+        break;
+      case "duration":
+        lines.push(
+          resolved.minutes === undefined
+            ? `- ${resolved.label}: none (no bays with this measure)`
+            : `- ${resolved.label}: ${formatDuration(resolved.minutes)} (${resolved.minutes} minutes, over ${resolved.of} bays)`,
+        );
         break;
       case "gauge":
         lines.push(`- ${resolved.label}: ${resolved.percent}% (${resolved.occupied} of ${resolved.of})`);

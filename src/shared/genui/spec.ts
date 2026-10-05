@@ -7,8 +7,8 @@ import { GARAGE_STATUSES, type GarageStatus } from "../contracts.js";
  * The one rule everything here serves is that **the model never writes a
  * number**. A spec names *which data* to show (`sources`) and *how* to show it
  * (`root`); the server fetches each source once and fills in every value. The
- * only free text is prose (`narrative`, `callout`), and a count inside prose
- * goes through a `{{sourceId.metric}}` token that the server resolves too.
+ * only free text is titles and a short `callout`, which may carry one
+ * `{{sourceId.metric}}` token that the server resolves too.
  *
  * Two reasons. A model asked "how many spaces on floor 7?" will produce a
  * plausible number whether or not it read one. And the upstream feed flaps
@@ -171,6 +171,12 @@ function unavailableMetric(where: string, metric: string, source: Source): strin
   return `${where}: "${metric}" is not available from a ${source.query} source, which offers ${offered}.${hint}`;
 }
 
+/** What a `stat` tile measures, and which statistic of it. */
+export const STAT_MEASURES = ["timeParked", "cameraAge"] as const;
+export type StatMeasure = (typeof STAT_MEASURES)[number];
+export const STATS = ["shortest", "median", "longest"] as const;
+export type Stat = (typeof STATS)[number];
+
 /** Queries that produce a list of bays. */
 export const BAY_LIST_QUERIES: readonly SourceQuery[] = ["availableSpaces", "staleFeeds", "plateSearch", "statusDetail"];
 
@@ -224,13 +230,25 @@ export const LeafSchema = z.discriminatedUnion("type", [
     bayId: z.string().trim().min(1).max(40),
   }),
   z.object({
+    type: z.literal("stat").describe(
+      "Shortest, median or longest time parked or camera image age, over every bay in a statusDetail source. Labelled automatically.",
+    ),
+    source: ref,
+    measure: z.enum(STAT_MEASURES),
+    stat: z.enum(STATS),
+  }),
+  // No `narrative`: free prose stringing several tokens together attached totals
+  // to single floors in 3 of 4 live answers, while the chat reply was right
+  // every time. Explanation belongs in the reply; a view has at most a callout.
+  z.object({
     type: z.literal("callout"),
     tone: z.enum(["info", "success", "warning", "danger"]),
-    text: z.string().trim().min(1).max(400).describe("Write counts as {{sourceId.metric}}, never as digits."),
-  }),
-  z.object({
-    type: z.literal("narrative"),
-    text: z.string().trim().min(1).max(600).describe("Write counts as {{sourceId.metric}}, never as digits."),
+    text: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .describe("One short sentence stating the finding, with no numbers. Counts go in kpi and stat tiles."),
   }),
 ]);
 export type Leaf = z.infer<typeof LeafSchema>;
@@ -272,21 +290,18 @@ export function isLayout(node: UiNode): node is Layout {
 // can fix them all in its retry instead of one per round trip.
 // ---------------------------------------------------------------------------
 
-export const TEMPLATE_TOKEN = /\{\{\s*([a-zA-Z0-9]+)\.([a-zA-Z]+)\s*\}\}/g;
-
 /**
  * Numbers in model-written text that are not allowed there. Counts belong in
- * `{{source.metric}}` tokens; the walkthrough found a headline built from a
+ * labelled kpi and stat tiles; the walkthrough found a headline built from a
  * 12-bay sample ("parked from 100 to 41,942 minutes", true minimum 2) and
  * prose quoting digits the prompt had forbidden.
  *
- * Allowed: tokens, floor and space references ("floor 7", "floors 7-9",
- * "space 744"), and mixed letter-digit identifiers (plates, "7B", "EV1",
- * "12h+" category names). Number words ("forty-seven") are not caught.
+ * Allowed: floor and space references ("floor 7", "floors 7-9", "space 744"),
+ * and mixed letter-digit identifiers (plates, "7B", "EV1", "12h+" category
+ * names). Number words ("forty-seven") are not caught.
  */
 export function strayNumbers(text: string): string[] {
   const cleaned = text
-    .replace(TEMPLATE_TOKEN, " ")
     .replace(/\b(?:floors?|levels?|spaces?|bays?)\s+\d+(?:\s*(?:-|–|to|and|or|,|&)\s*(?:floors?\s+)?\d+)*/gi, " ")
     .replace(/\b(?=[a-z0-9-]*[a-z])(?=[a-z0-9-]*\d)[a-z0-9-]+\+?/gi, " ");
   return cleaned.match(/\d[\d,.]*%?/g) ?? [];
@@ -308,35 +323,28 @@ export function checkSpec(spec: UiSpec): string[] {
     return source;
   };
 
+  /**
+   * Every piece of model-written text: titles and callouts. It may state the
+   * finding but never a count. Placeholders are gone too: every live run
+   * eventually pinned a token's total on a single floor ("the busiest floor is
+   * 90 stale feeds (whole garage)"), and an unfilled `{{…}}` reached the screen
+   * raw. Numbers live only in tiles the server labels.
+   */
   const checkFreeText = (text: string | undefined, where: string) => {
     if (!text) return;
+    if (text.includes("{{")) {
+      problems.push(
+        `${where}: "${text}" contains a {{placeholder}}. Text carries no numbers or tokens: say what the finding is ` +
+          `("Floor 7 has the most stale cameras") and show counts in kpi or stat tiles.`,
+      );
+      return;
+    }
     const numbers = strayNumbers(text);
     if (numbers.length > 0) {
       problems.push(
         `${where}: "${text}" contains ${numbers.join(", ")}. Text you write must not state counts: ` +
-          `use a {{source.metric}} token in a callout or narrative, or a kpi. Floors ("floor 7") and plates are fine.`,
+          `show them in kpi or stat tiles. Floors ("floor 7") and plates are fine.`,
       );
-    }
-  };
-
-  const checkText = (text: string, where: string) => {
-    checkFreeText(text, where);
-    // Anything brace-wrapped that is not exactly {{source.metric}} would be
-    // neither validated nor filled, and reach the screen as raw text (the live
-    // run showed "{{occ.stats.parkedMinutes.min}}" to the user).
-    for (const [braced] of text.matchAll(/\{\{[^{}]*(?:\}\}?)?/g)) {
-      if (!new RegExp(`^${TEMPLATE_TOKEN.source}$`).test(braced)) {
-        problems.push(
-          `${where}: "${braced}" is not a valid token. Only {{sourceId.metric}} with one of the source's metrics works; ` +
-            `stats (minimum, median, maximum) cannot be shown in a view, so mention them in your closing reply instead.`,
-        );
-      }
-    }
-    for (const [, id, metric] of text.matchAll(TEMPLATE_TOKEN)) {
-      const source = sourceFor(id, where);
-      if (source && !(metricsFor(source) as readonly string[]).includes(metric)) {
-        problems.push(unavailableMetric(`${where} {{${id}.${metric}}}`, metric, source));
-      }
     }
   };
 
@@ -394,9 +402,18 @@ export function checkSpec(spec: UiSpec): string[] {
         break;
       }
       case "callout":
-      case "narrative":
-        checkText(node.text, where);
+        checkFreeText(node.text, where);
         break;
+      case "stat": {
+        const source = sourceFor(node.source, where);
+        if (source && source.query !== "statusDetail") {
+          // A list source is one page: statistics over it would describe the page, not the garage.
+          problems.push(`${where}: a stat needs a statusDetail source, which covers every bay; ${source.query} is paged.`);
+        } else if (source?.query === "statusDetail" && node.measure === "timeParked" && source.status !== "occupied") {
+          problems.push(`${where}: timeParked needs statusDetail with status "occupied"; only occupied spaces have a parked time.`);
+        }
+        break;
+      }
       case "cameraPreview":
         break;
     }
@@ -412,7 +429,7 @@ export function checkSpec(spec: UiSpec): string[] {
   return problems;
 }
 
-/** Ids of the sources a view actually binds to, through leaves or `{{id.metric}}` tokens. */
+/** Ids of the sources a view's leaves actually bind to. */
 export function usedSourceIds(root: UiNode): Set<string> {
   const used = new Set<string>();
   const visit = (node: UiNode) => {
@@ -421,9 +438,6 @@ export function usedSourceIds(root: UiNode): Set<string> {
       return;
     }
     if ("source" in node) used.add(node.source);
-    if (node.type === "callout" || node.type === "narrative") {
-      for (const [, id] of node.text.matchAll(TEMPLATE_TOKEN)) used.add(id);
-    }
   };
   visit(root);
   return used;
@@ -472,6 +486,8 @@ export interface ListMeta {
 
 export type Resolved =
   | { kind: "metric"; value: number; label: string; unit?: "%" }
+  /** `minutes` is undefined when no bay in scope has the measure (e.g. no parked cars). `of` is how many bays it covers. */
+  | { kind: "duration"; minutes?: number; label: string; of: number }
   | { kind: "gauge"; percent: number; occupied: number; of: number; label: string }
   | { kind: "series"; rows: SeriesRow[]; total: number; label: string }
   | ({ kind: "bays"; rows: BayRow[]; label: string } & ListMeta)

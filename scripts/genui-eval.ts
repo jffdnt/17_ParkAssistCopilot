@@ -96,12 +96,12 @@ const REJECTION_CAUSES: [string, RegExp][] = [
   ["limits", /nested|leaves; the limit/],
 ];
 
-/** Every piece of text the model wrote in a view: titles, callouts, narratives. */
+/** Every piece of text the model wrote in a view: titles and callouts. */
 function freeTextOf(spec: UiSpec): string[] {
   const texts: string[] = [spec.title];
   const visit = (node: UiNode) => {
     if ("title" in node && node.title) texts.push(node.title);
-    if (node.type === "callout" || node.type === "narrative") texts.push(node.text);
+    if (node.type === "callout") texts.push(node.text);
     if (isLayout(node)) node.children.forEach(visit);
   };
   visit(spec.root);

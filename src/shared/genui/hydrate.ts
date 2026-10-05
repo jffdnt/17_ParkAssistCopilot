@@ -9,7 +9,6 @@ import { categoriesFor, categoryOf, formatDuration } from "../status-categories.
 import {
   isLayout,
   STATUS_METRIC,
-  TEMPLATE_TOKEN,
   usedSourceIds,
   type BayRow,
   type HydratedNode,
@@ -19,6 +18,7 @@ import {
   type Resolved,
   type SeriesRow,
   type Source,
+  type StatMeasure,
   type UiNode,
   type UiSpec,
 } from "./spec.js";
@@ -187,9 +187,19 @@ function resolveLeaf(leaf: Leaf, lookup: Lookup, deps: HydrateDeps): Resolved {
       if (!bay) throw new HydrationError(`Bay "${leaf.bayId}" is not a configured garage space. Use a bayId returned by a data tool.`);
       return { kind: "camera", bayId: leaf.bayId, ...bay };
     }
+    case "stat": {
+      const { data } = lookup(leaf.source);
+      const detail = requireDetail(data, "stat");
+      const stats = durationStats(allSpaces(detail).map(({ space }) => measureOf(leaf.measure, space)));
+      return {
+        kind: "duration",
+        minutes: stats?.[leaf.stat],
+        of: stats?.count ?? 0,
+        label: `${capitalize(leaf.stat)} ${leaf.measure === "timeParked" ? "time parked" : "camera image age"} · ${statusLabel(detail.status).toLowerCase()}`,
+      };
+    }
     case "callout":
-    case "narrative":
-      return { kind: "text", text: fillTemplate(leaf.text, lookup) };
+      return { kind: "text", text: leaf.text };
   }
 }
 
@@ -209,24 +219,6 @@ function readMetric(data: SourceData, metric: Metric): number {
   // occupied tile come from the same predicate in the same snapshot.
   if (data.kind === "detail" && STATUS_METRIC[data.detail.status] === metric) return data.detail.total;
   return scopedMetrics(data)[metric];
-}
-
-/**
- * A token expands to its value *with its own noun and scope*, e.g. "148 stale
- * or missing camera feeds (whole garage)". A bare number can be attached to the
- * wrong thing: the walkthrough rendered "floor seven with 148 stale feeds"
- * when 148 was the garage total and floor 7 had 47. Self-describing tokens make
- * that kind of misattribution visible instead of silent.
- */
-function fillTemplate(text: string, lookup: Lookup): string {
-  return text.replace(TEMPLATE_TOKEN, (_match, id: string, name: string) => {
-    const metric = name as Metric;
-    const { source, data } = lookup(id);
-    const value = readMetric(data, metric);
-    return metric === "occupancyPercent"
-      ? `${value}% occupancy (${scopeOf(source)})`
-      : `${value.toLocaleString("en-US")} ${metricNoun(metric, source)} (${scopeOf(source)})`;
-  });
 }
 
 function series(dataset: string, source: Source, data: SourceData, title: string | undefined): Resolved {
@@ -305,6 +297,34 @@ function series(dataset: string, source: Source, data: SourceData, title: string
     default:
       throw new HydrationError(`Unknown dataset "${dataset}".`);
   }
+}
+
+export interface DurationStats {
+  /** How many bays had a value; bays without one (no entry time, no camera) are left out. */
+  count: number;
+  shortest: number;
+  median: number;
+  longest: number;
+}
+
+/**
+ * Shortest, median and longest of a set of minute values, over every value
+ * present. One function behind both the data tools' `stats` and the `stat`
+ * tile, so the model's reply and the view cannot disagree.
+ */
+export function durationStats(values: (number | undefined)[]): DurationStats | undefined {
+  const present = values.filter((value): value is number => value !== undefined).sort((left, right) => left - right);
+  if (present.length === 0) return undefined;
+  return {
+    count: present.length,
+    shortest: Math.round(present[0]),
+    median: Math.round(present[Math.floor(present.length / 2)]),
+    longest: Math.round(present[present.length - 1]),
+  };
+}
+
+function measureOf(measure: StatMeasure, space: GarageStatusSpace): number | undefined {
+  return measure === "timeParked" ? space.parkedMinutes : space.thumbnailAgeMinutes;
 }
 
 function requireDetail(data: SourceData, dataset: string): GarageStatusDetail {

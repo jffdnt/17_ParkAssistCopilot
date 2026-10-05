@@ -1,6 +1,6 @@
 import { tool, type ToolSet } from "ai";
 import { z } from "zod/v4";
-import { hydrate, HydrationError, type SourceData } from "../../shared/genui/hydrate.js";
+import { durationStats, hydrate, HydrationError, type SourceData } from "../../shared/genui/hydrate.js";
 import { checkSpec, SourceSchema, UiSpecSchema, type HydratedSpec, type Source } from "../../shared/genui/spec.js";
 import { summarizeView } from "../../shared/genui/summary.js";
 import type { ParkingDataService } from "../services/parking-data.js";
@@ -98,19 +98,6 @@ function sampleNote(shown: number, total: number): string {
     : `sampleBays is only the first ${shown} of ${total} matching bays. Do not compute totals, minimums, maximums or averages from it; use the totals, breakdowns and stats instead.`;
 }
 
-/** Minimum, median and maximum over every value present, or undefined when there are none. */
-function statsOf(values: (number | undefined)[]): { count: number; min: number; median: number; max: number } | undefined {
-  const present = values.filter((value): value is number => value !== undefined).sort((left, right) => left - right);
-  if (present.length === 0) return undefined;
-  const round = (value: number) => Math.round(value);
-  return {
-    count: present.length,
-    min: round(present[0]),
-    median: round(present[Math.floor(present.length / 2)]),
-    max: round(present[present.length - 1]),
-  };
-}
-
 function digest(data: SourceData): Record<string, unknown> {
   if (data.kind === "detail") {
     const { detail } = data;
@@ -124,9 +111,10 @@ function digest(data: SourceData): Record<string, unknown> {
       byFloor: detail.floors.map((floor) => ({ floor: floor.floor, count: floor.spaces.length, configured: floor.configured })),
       byType: Object.fromEntries(byType),
       // Over every bay in the status, so the model never derives these from the sample.
+      // The same function fills the `stat` tile, so a reply and a view agree.
       stats: {
-        parkedMinutes: statsOf(spaces.map(({ space }) => space.parkedMinutes)),
-        cameraAgeMinutes: statsOf(spaces.map(({ space }) => space.thumbnailAgeMinutes)),
+        timeParkedMinutes: durationStats(spaces.map(({ space }) => space.parkedMinutes)),
+        cameraAgeMinutes: durationStats(spaces.map(({ space }) => space.thumbnailAgeMinutes)),
       },
       sampleNote: sampleNote(Math.min(DIGEST_BAYS, spaces.length), detail.total),
       sampleBays: spaces.slice(0, DIGEST_BAYS).map(({ floor, space }) => ({

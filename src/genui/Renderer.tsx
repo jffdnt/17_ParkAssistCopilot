@@ -30,6 +30,7 @@ import type {
   Tone,
 } from "../shared/genui/spec.js";
 import { followUpBinding, followUpQuestion } from "../shared/genui/follow-up.js";
+import { formatDuration } from "../shared/status-categories.js";
 import type { AuthHeaders } from "./auth.js";
 
 // A local copy: importing the function from spec.ts would bundle Zod into the page.
@@ -155,6 +156,19 @@ function Leaf({ leaf, context }: { leaf: HydratedLeaf; context: ViewContext }): 
           <span className={styles.kpiValue}>{resolved.value.toLocaleString()}{resolved.unit}</span>
         </Card>
       );
+    case "duration":
+      return (
+        <Card className={styles.card}>
+          <div className={styles.cardHead}>
+            <Text size={200} className={styles.muted}>{resolved.label}</Text>
+            {askButton(resolved.label.toLowerCase())}
+          </div>
+          <span className={styles.kpiValue}>{resolved.minutes === undefined ? "—" : formatDuration(resolved.minutes)}</span>
+          <Text size={200} className={styles.muted}>
+            {resolved.minutes === undefined ? "No bays with this measure right now." : `Across ${resolved.of.toLocaleString()} spaces.`}
+          </Text>
+        </Card>
+      );
     case "gauge":
       return (
         <Card className={styles.card}>
@@ -209,13 +223,12 @@ function Leaf({ leaf, context }: { leaf: HydratedLeaf; context: ViewContext }): 
     case "camera":
       return <CameraPreview bayId={resolved.bayId} label={resolved.spaceNumber ? `Space ${resolved.spaceNumber}, floor ${resolved.floor}` : resolved.bayId} context={context} />;
     case "text":
-      return leaf.type === "callout"
-        ? (
-          <MessageBar intent={leaf.tone === "danger" ? "error" : leaf.tone}>
-            <MessageBarBody>{resolved.text}</MessageBarBody>
-          </MessageBar>
-        )
-        : <Text as="p">{resolved.text}</Text>;
+      if (leaf.type !== "callout") return null;
+      return (
+        <MessageBar intent={leaf.tone === "danger" ? "error" : leaf.tone}>
+          <MessageBarBody>{resolved.text}</MessageBarBody>
+        </MessageBar>
+      );
     default:
       return <Card className={styles.card}><Text className={styles.muted}>This part of the view could not be shown.</Text></Card>;
   }
