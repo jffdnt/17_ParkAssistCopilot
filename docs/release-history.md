@@ -9,6 +9,19 @@ deployment plan and validation proof, see
 
 ---
 
+## Generative UI experiment (2026-10-05) — NOT DEPLOYED
+
+A standalone page at `/genui` where an Azure OpenAI model composes each answer as a validated JSON view from an allowlist of components (KPI and statistics tiles, occupancy gauge, bar and donut charts, bay tables and grids, plate cards, camera previews, one-line callouts). Under review in PR #29; off unless `GENUI_ENABLED=true`. The SPFx, Copilot Studio and MCP routes are unchanged.
+
+- **The model never writes a number.** The server fills every value from one upstream read per turn (`ParkingDataService.forTurn()`) and labels every tile itself. Model-written text (titles, callouts) may state findings but is rejected if it contains digits or `{{placeholders}}`. This rule came from live testing: an eval scored 48/48 while 3 of 4 real views were misleading. The failures were a headline computed from a 12-bay sample ("100 to 41,942 minutes"; the true minimum was 2), a garage-wide counter shown as a Company EV count (900 against a true 0), a mislabeled stale-only counter, and garage totals attached to single floors. The last persisted with one placeholder per callout; the model's chat replies were correct every time.
+- **Azure resources (created 2026-10-02):** Azure OpenAI account `oai-parkassist-dev` in `rg-parkassist-prod` (East US, custom subdomain for Entra auth), deployment `gpt-5.4-mini` version `2026-03-17`, Global Standard, 50K TPM. Pay-per-token only, with no budget alert configured. Jeffrey Dent's login holds **Cognitive Services OpenAI User** on the account for local runs; the role took about 6½ minutes to take effect, returning 401 "Principal does not have access to API/Operation" until then. Key-based access is still enabled on the account although the app never uses keys.
+- **Measured cost and quality (`scripts/genui-eval.ts`, 16 questions, live data):** 16/16 rendered, 15 on the first try, about $0.0035 per question (~$4.30 for a 1,250-question development month). Input was 78–83% prompt-cache hits, and the model used no reasoning tokens; the pre-build estimate of $0.025 per question was about 7× too high. Server time per question was 5–7 s after a ~13 s first request.
+- **Before enabling in Azure:** add the SPA redirect URI `https://<app>/genui` to the ParkAssist Copilot app registration (the page signs in with MSAL), deploy with the Bicep `azureOpenAiResource` / `azureOpenAiDeployment` parameters (they also grant the Container App identity its role and set `AZURE_CLIENT_ID`, which was previously set only with SharePoint configured), and use a unique image tag.
+
+## CI audit policy (2026-10-05)
+
+- CI now blocks on `npm audit --omit=dev` and runs the full audit report-only (PR #30). Production dependencies were clean in both packages. Every finding was in build tooling with no upgrade path: GHSA-vfj7-8cjw-p6xm (`braces` ≤3.0.3 via `vite-plugin-singlefile`, no patched release), and 21 SPFx/Heft toolchain advisories whose suggested fixes would downgrade SPFx below the 1.24 that Copilot Components require. Make the full audit blocking again once `braces` is patched.
+
 ## Dashboard drill-down rollout (1.9.5) — DEPLOYED
 
 Each of the Available, Occupied, Stale or missing feeds, and Out of service dashboard counters now opens a complete per-floor map backed by the Entra-protected `GET /api/status-detail?status=…` route. The view updates Copilot model context, and **Ask Copilot** sends a context-aware follow-up. The route shares the metric predicates and carried signed camera URLs only for the interactive component. Full plates are restricted to the Entra-protected occupied drill-down; every other drill-down status continues to omit them.
