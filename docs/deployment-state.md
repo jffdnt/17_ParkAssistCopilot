@@ -19,7 +19,7 @@ deployment source of truth.
 ## Current versions
 
 - **Server:** image `parkassist-mcp:20261005-genui1` (ACR digest `sha256:0c8e13f170c01027877fab45eb42113a05c9d40cb0e15c8fcc6f011a7f606cae`), Container App revision `parkassist-mcp--0000017` (`parkassist-mcp` in `rg-parkassist-prod`), release `1.9.6` plus the generative UI. It replaced `20261002-platecontext1` (`--0000016`), which stays in ACR for rollback.
-- **SPFx package:** App Catalog item `e18adece-2878-4fcf-9e03-c65e4448dd54`, version `1.9.6.0`, valid and deployed tenant-wide (uploaded with `--overwrite` and deployed 2026-10-05). **Add to Teams** has not been re-invoked for `1.9.6.0` yet.
+- **SPFx package:** App Catalog item `e18adece-2878-4fcf-9e03-c65e4448dd54`, version `1.9.6.0`, valid and deployed (uploaded with `--overwrite` 2026-10-05). The first deploy that day omitted `--skipFeatureDeployment`, so it was **not** tenant-wide and Copilot reported `CopilotComponent 'GarageOverviewTool' not found in solution '26d40212-…'` on 2026-10-07; it was redeployed with `--skipFeatureDeployment` (catalog `SkipDeploymentFeature: true`). **Add to Teams** has not been re-invoked for `1.9.6.0` yet.
 - **`1.9.6` (deployed 2026-10-05):** camera-preview issuance moved off the `GET /api/status-detail` drill-down response onto the on-demand `GET /api/camera-preview-url?bayId=…` call made only after a user opens a space — see [architecture.md](architecture.md) for the current contract. Live drill-down camera-preview acceptance in Microsoft 365 Copilot has not been recorded yet.
 
 ## Power Platform / Copilot Studio reference
